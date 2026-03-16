@@ -11,6 +11,7 @@ import {
   Globe,
   ImageIcon,
 } from 'lucide-react'
+import { ExportButtons } from './ExportButtons'
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ImageLightbox } from './ui/ImageLightbox'
 import { generateDOCX } from '../lib/generators/docx'
@@ -277,7 +278,7 @@ function ExportDropdown({
           await generateDOCX(article)
           break
         case 'pdf':
-          if (articleRef.current) await generatePDF(articleRef.current, `${handle}-article`)
+          await generatePDF(article)
           break
         case 'png':
           if (articleRef.current) await generatePNG(articleRef.current, `${handle}-article`)
@@ -510,8 +511,8 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
           </section>
         ) : null}
 
-        <section className="mt-6 flex flex-col gap-4 border-t border-border-subtle pt-4 sm:flex-row sm:items-center sm:justify-between" data-export-exclude>
-          <div className="flex flex-wrap items-center gap-5">
+        <section className="mt-6 border-t border-border-subtle pt-4">
+          <div className="mb-4 flex flex-wrap items-center gap-5">
             <span className="inline-flex items-center gap-1.5 font-mono text-xs text-text-muted">
               <FileText className="h-[14px] w-[14px] text-accent-violet" />
               {article.wordCount} words
@@ -527,6 +528,8 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
               </span>
             ) : null}
           </div>
+
+          <ExportButtons article={article} articleRef={articleRef} onExport={onExport} />
         </section>
       </motion.article>
     </>

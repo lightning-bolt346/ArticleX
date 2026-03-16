@@ -1,63 +1,24 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { CheckCircle2, Code2, FileType, Globe } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { CheckCircle2, Code2, FileImage, FileText, FileType, Globe } from 'lucide-react'
+import { useRef, useState } from 'react'
 import { generateDOCX } from '../lib/generators/docx'
 import { generateHTML } from '../lib/generators/html'
 import { generateMarkdown } from '../lib/generators/markdown'
+import { generatePDF } from '../lib/generators/pdf'
+import { generatePNG } from '../lib/generators/png'
 import type { ArticleObject } from '../types/article'
+
+type ExportFormat = 'html' | 'md' | 'docx' | 'pdf' | 'png'
 
 interface ExportButtonsProps {
   article: ArticleObject
-  onExport: (format: 'html' | 'md' | 'docx') => void
+  articleRef: React.RefObject<HTMLElement | null>
+  onExport: (format: string) => void
 }
 
-type ExportFormat = 'html' | 'md' | 'docx'
-
-const PARTICLE_COLORS = ['#7c3aed', '#06b6d4', '#a855f7'] as const
-
-interface Particle {
-  dx: number
-  dy: number
-  color: string
-  delay: number
-}
-
-const ParticleBurst = ({ seed }: { seed: number }) => {
-  const particles = useMemo<Particle[]>(
-    () =>
-      Array.from({ length: 10 }).map((_, index) => {
-        const angle = Math.random() * Math.PI * 2
-        const distance = 30 + Math.random() * 40
-        return {
-          dx: Math.cos(angle) * distance,
-          dy: Math.sin(angle) * distance,
-          color: PARTICLE_COLORS[index % PARTICLE_COLORS.length],
-          delay: index * 0.03,
-        }
-      }),
-    [seed],
-  )
-
-  return (
-    <div className="pointer-events-none absolute inset-0 overflow-visible">
-      {particles.map((particle, index) => (
-        <motion.div
-          key={`${seed}-${index}`}
-          className="absolute left-1/2 top-1/2 h-[5px] w-[5px] rounded-full"
-          style={{ background: particle.color }}
-          initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
-          animate={{ x: particle.dx, y: particle.dy, opacity: 0, scale: 0.6 }}
-          transition={{ duration: 0.6, delay: particle.delay, ease: 'easeOut' }}
-        />
-      ))}
-    </div>
-  )
-}
-
-interface ExportButtonConfig {
+interface ButtonConfig {
   format: ExportFormat
   label: string
-  description: string
   sublabel: string
   icon: typeof Globe
   iconClassName: string
@@ -65,90 +26,95 @@ interface ExportButtonConfig {
   hoverClassName: string
 }
 
-const BUTTON_CONFIGS: ExportButtonConfig[] = [
+const BUTTON_CONFIGS: ButtonConfig[] = [
   {
     format: 'html',
-    label: 'HTML File',
-    description: 'HTML',
+    label: 'HTML',
     sublabel: 'Styled + standalone',
     icon: Globe,
     iconClassName: 'text-[#7c3aed]',
-    className:
-      'border border-[rgba(124,58,237,0.35)] bg-[linear-gradient(135deg,#7c3aed20,#06b6d420)]',
-    hoverClassName:
-      'hover:border-[rgba(124,58,237,0.6)] hover:bg-[rgba(124,58,237,0.15)] hover:shadow-glow-violet',
+    className: 'border border-[rgba(124,58,237,0.3)] bg-[rgba(124,58,237,0.06)]',
+    hoverClassName: 'hover:border-[rgba(124,58,237,0.5)] hover:bg-[rgba(124,58,237,0.12)]',
   },
   {
     format: 'md',
     label: 'Markdown',
-    description: 'Markdown',
     sublabel: 'Dev-friendly',
     icon: Code2,
     iconClassName: 'text-[#a855f7]',
-    className: 'border border-[rgba(255,255,255,0.08)] bg-white/[0.03]',
-    hoverClassName: 'hover:border-[rgba(168,85,247,0.4)] hover:bg-[rgba(168,85,247,0.1)]',
+    className: 'border border-border-subtle bg-[rgba(168,85,247,0.04)]',
+    hoverClassName: 'hover:border-[rgba(168,85,247,0.35)] hover:bg-[rgba(168,85,247,0.08)]',
   },
   {
     format: 'docx',
-    label: 'Word Doc',
-    description: 'DOCX',
+    label: 'Word',
     sublabel: 'Edit in Word',
     icon: FileType,
     iconClassName: 'text-[#06b6d4]',
-    className: 'border border-[rgba(255,255,255,0.08)] bg-white/[0.03]',
-    hoverClassName: 'hover:border-[rgba(6,182,212,0.4)] hover:bg-[rgba(6,182,212,0.1)]',
+    className: 'border border-border-subtle bg-[rgba(6,182,212,0.04)]',
+    hoverClassName: 'hover:border-[rgba(6,182,212,0.35)] hover:bg-[rgba(6,182,212,0.08)]',
+  },
+  {
+    format: 'pdf',
+    label: 'PDF',
+    sublabel: 'Print-ready',
+    icon: FileText,
+    iconClassName: 'text-[#ef4444]',
+    className: 'border border-border-subtle bg-[rgba(239,68,68,0.04)]',
+    hoverClassName: 'hover:border-[rgba(239,68,68,0.35)] hover:bg-[rgba(239,68,68,0.08)]',
+  },
+  {
+    format: 'png',
+    label: 'Image',
+    sublabel: 'HD screenshot',
+    icon: FileImage,
+    iconClassName: 'text-[#f59e0b]',
+    className: 'border border-border-subtle bg-[rgba(245,158,11,0.04)]',
+    hoverClassName: 'hover:border-[rgba(245,158,11,0.35)] hover:bg-[rgba(245,158,11,0.08)]',
   },
 ]
 
-export const ExportButtons = ({ article, onExport }: ExportButtonsProps) => {
+export const ExportButtons = ({ article, articleRef, onExport }: ExportButtonsProps) => {
   const [loadingFormat, setLoadingFormat] = useState<ExportFormat | null>(null)
   const [successFormat, setSuccessFormat] = useState<ExportFormat | null>(null)
-  const [burst, setBurst] = useState<{ format: ExportFormat; seed: number } | null>(null)
+  const timerRef = useRef<number | null>(null)
+
+  const handle = article.authorHandle.replace(/^@/, '')
 
   const handleExport = async (format: ExportFormat) => {
-    if (loadingFormat) {
-      return
-    }
-
+    if (loadingFormat) return
     setLoadingFormat(format)
     const start = Date.now()
 
     try {
-      if (format === 'html') {
-        generateHTML(article)
-      } else if (format === 'md') {
-        generateMarkdown(article)
-      } else {
-        await generateDOCX(article)
+      switch (format) {
+        case 'html': generateHTML(article); break
+        case 'md': generateMarkdown(article); break
+        case 'docx': await generateDOCX(article); break
+        case 'pdf': await generatePDF(article); break
+        case 'png':
+          if (articleRef.current) await generatePNG(articleRef.current, `${handle}-article`)
+          break
       }
 
       const elapsed = Date.now() - start
-      if (elapsed < 1200) {
-        await new Promise((resolve) => window.setTimeout(resolve, 1200 - elapsed))
-      }
+      if (elapsed < 800) await new Promise((r) => window.setTimeout(r, 800 - elapsed))
 
       setSuccessFormat(format)
-      setBurst({ format, seed: Date.now() })
       onExport(format)
-
-      window.setTimeout(() => {
-        setSuccessFormat((current) => (current === format ? null : current))
-        setBurst((current) => (current?.format === format ? null : current))
-      }, 2000)
+      if (timerRef.current) window.clearTimeout(timerRef.current)
+      timerRef.current = window.setTimeout(() => setSuccessFormat(null), 2000)
     } finally {
       setLoadingFormat(null)
     }
   }
 
-  const isDisabled = loadingFormat !== null
-
   return (
-    <section className={isDisabled ? 'opacity-50 pointer-events-none' : ''}>
+    <section data-export-exclude>
       <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.12em] text-text-muted">
-        Export Article
+        Export As
       </p>
-
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-2">
         {BUTTON_CONFIGS.map((config) => {
           const Icon = config.icon
           const isLoadingCurrent = loadingFormat === config.format
@@ -160,56 +126,34 @@ export const ExportButtons = ({ article, onExport }: ExportButtonsProps) => {
               type="button"
               data-cursor="pointer"
               onClick={() => void handleExport(config.format)}
-              className={`relative min-w-[170px] flex-1 overflow-visible rounded-2xl px-5 py-4 text-left transition-colors ${config.className} ${config.hoverClassName}`}
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.96 }}
-              disabled={isDisabled}
+              disabled={!!loadingFormat}
+              className={`relative flex items-center gap-2 rounded-xl px-4 py-2.5 text-left transition-colors disabled:opacity-50 ${config.className} ${config.hoverClassName}`}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.97 }}
             >
-              <div className="flex items-start gap-3">
-                <AnimatePresence mode="wait" initial={false}>
-                  {isSuccessCurrent ? (
-                    <motion.div
-                      key="success"
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                    >
-                      <CheckCircle2 className="h-5 w-5 text-green-500" />
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      key="default"
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                    >
-                      <Icon className={`h-5 w-5 ${config.iconClassName}`} />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                <div>
-                  <p className="font-inter text-sm font-semibold text-text-primary">
-                    {config.label}
-                  </p>
-                  <p className="mt-1 font-inter text-[11px] text-text-muted">{config.sublabel}</p>
-                </div>
+              <AnimatePresence mode="wait" initial={false}>
+                {isSuccessCurrent ? (
+                  <motion.div key="ok" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.5, opacity: 0 }}>
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  </motion.div>
+                ) : (
+                  <motion.div key="icon" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.5, opacity: 0 }}>
+                    <Icon className={`h-4 w-4 ${config.iconClassName}`} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              <div>
+                <p className="font-inter text-[13px] font-semibold text-text-primary">{config.label}</p>
+                <p className="font-inter text-[10px] text-text-muted">{config.sublabel}</p>
               </div>
-
-              <span className="mt-3 block font-mono text-[10px] uppercase tracking-[0.08em] text-text-dim">
-                {config.description}
-              </span>
-
-              {isLoadingCurrent ? (
+              {isLoadingCurrent && (
                 <motion.div
-                  className="absolute bottom-0 left-0 h-[2px] rounded-b-2xl bg-[linear-gradient(90deg,#7c3aed,#06b6d4)]"
+                  className="absolute bottom-0 left-0 h-[2px] rounded-b-xl bg-[linear-gradient(90deg,#7c3aed,#06b6d4)]"
                   initial={{ width: '0%' }}
                   animate={{ width: '100%' }}
-                  transition={{ duration: 1.2, ease: 'easeInOut' }}
+                  transition={{ duration: 0.8, ease: 'easeInOut' }}
                 />
-              ) : null}
-
-              {burst?.format === config.format ? <ParticleBurst seed={burst.seed} /> : null}
+              )}
             </motion.button>
           )
         })}

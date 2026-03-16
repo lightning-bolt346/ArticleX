@@ -3,12 +3,9 @@ import {
   BorderStyle,
   Document,
   ExternalHyperlink,
-  Footer,
-  Header,
   HeadingLevel,
   ImageRun,
   Packer,
-  PageNumber,
   Paragraph,
   ShadingType,
   TextRun,
@@ -38,7 +35,6 @@ async function fetchImageData(
     const buffer = await response.arrayBuffer()
     const blob = new Blob([buffer])
     const objectUrl = URL.createObjectURL(blob)
-
     const dims = await new Promise<{ width: number; height: number }>((resolve, reject) => {
       const img = new Image()
       img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight })
@@ -101,23 +97,14 @@ function blockToRuns(block: ContentBlock): (TextRun | ExternalHyperlink)[] {
         }),
       )
     } else {
-      runs.push(
-        new TextRun({
-          text: slice,
-          size: 22,
-          font: 'Calibri',
-          bold: bold || undefined,
-        }),
-      )
+      runs.push(new TextRun({ text: slice, size: 22, font: 'Calibri', bold: bold || undefined }))
     }
   }
 
   return runs
 }
 
-async function blocksToDocxParagraphs(
-  blocks: ContentBlock[],
-): Promise<Paragraph[]> {
+async function blocksToDocxParagraphs(blocks: ContentBlock[]): Promise<Paragraph[]> {
   const paragraphs: Paragraph[] = []
   const imageCache = new Map<string, { buffer: ArrayBuffer; width: number; height: number } | null>()
 
@@ -156,18 +143,10 @@ async function blocksToDocxParagraphs(
         paragraphs.push(
           new Paragraph({
             children: [
-              new TextRun({
-                text: block.text,
-                italics: true,
-                size: 22,
-                font: 'Calibri',
-                color: '6B7280',
-              }),
+              new TextRun({ text: block.text, italics: true, size: 22, font: 'Calibri', color: '6B7280' }),
             ],
             indent: { left: 720 },
-            border: {
-              left: { style: BorderStyle.SINGLE, size: 6, color: '7C3AED' },
-            },
+            border: { left: { style: BorderStyle.SINGLE, size: 6, color: '7C3AED' } },
             spacing: { before: 120, after: 120 },
           }),
         )
@@ -177,13 +156,7 @@ async function blocksToDocxParagraphs(
         for (const line of block.text.split('\n')) {
           paragraphs.push(
             new Paragraph({
-              children: [
-                new TextRun({
-                  text: line || ' ',
-                  size: 18,
-                  font: 'Courier New',
-                }),
-              ],
+              children: [new TextRun({ text: line || ' ', size: 18, font: 'Courier New' })],
               shading: { type: ShadingType.SOLID, color: 'F3F4F6', fill: 'F3F4F6' },
               spacing: { after: 0 },
               indent: { left: 200 },
@@ -202,28 +175,17 @@ async function blocksToDocxParagraphs(
           if (imgData) {
             const maxWidth = 500
             const scale = Math.min(maxWidth / imgData.width, 1)
-            const w = Math.round(imgData.width * scale)
-            const h = Math.round(imgData.height * scale)
             paragraphs.push(
               new Paragraph({
                 children: [
                   new ImageRun({
                     data: imgData.buffer,
-                    transformation: { width: w, height: h },
+                    transformation: { width: Math.round(imgData.width * scale), height: Math.round(imgData.height * scale) },
                     type: 'jpg',
                   }),
                 ],
                 spacing: { before: 160, after: 160 },
                 alignment: AlignmentType.CENTER,
-              }),
-            )
-          } else {
-            paragraphs.push(
-              new Paragraph({
-                children: [
-                  new TextRun({ text: `[Image: ${block.imageUrl}]`, size: 18, color: '888888' }),
-                ],
-                spacing: { before: 120, after: 120 },
               }),
             )
           }
@@ -267,111 +229,60 @@ export const generateDOCX = async (article: ArticleObject): Promise<void> => {
 
   const trailingImages = hasRichContent ? [] : article.images
   const imageParagraphs: Paragraph[] = []
-  if (trailingImages.length > 0) {
-    imageParagraphs.push(
-      new Paragraph({
-        children: [
-          new TextRun({ text: 'Attached Images:', bold: true, underline: {}, size: 22, font: 'Calibri' }),
-        ],
-        spacing: { before: 300, after: 140 },
-      }),
-    )
-    for (const url of trailingImages) {
-      const imgData = await fetchImageData(url)
-      if (imgData) {
-        const maxWidth = 500
-        const scale = Math.min(maxWidth / imgData.width, 1)
-        imageParagraphs.push(
-          new Paragraph({
-            children: [
-              new ImageRun({
-                data: imgData.buffer,
-                transformation: {
-                  width: Math.round(imgData.width * scale),
-                  height: Math.round(imgData.height * scale),
-                },
-                type: 'jpg',
-              }),
-            ],
-            spacing: { before: 80, after: 160 },
-            alignment: AlignmentType.CENTER,
-          }),
-        )
-      } else {
-        imageParagraphs.push(
-          new Paragraph({
-            children: [new TextRun({ text: `• ${url}`, size: 18, color: '888888' })],
-            spacing: { after: 120 },
-          }),
-        )
-      }
+  for (const url of trailingImages) {
+    const imgData = await fetchImageData(url)
+    if (imgData) {
+      const maxWidth = 500
+      const scale = Math.min(maxWidth / imgData.width, 1)
+      imageParagraphs.push(
+        new Paragraph({
+          children: [
+            new ImageRun({
+              data: imgData.buffer,
+              transformation: { width: Math.round(imgData.width * scale), height: Math.round(imgData.height * scale) },
+              type: 'jpg',
+            }),
+          ],
+          spacing: { before: 80, after: 160 },
+          alignment: AlignmentType.CENTER,
+        }),
+      )
+    }
+  }
+
+  const coverParagraphs: Paragraph[] = []
+  if (article.coverImage) {
+    const coverData = await fetchImageData(article.coverImage)
+    if (coverData) {
+      const maxWidth = 600
+      const scale = Math.min(maxWidth / coverData.width, 1)
+      coverParagraphs.push(
+        new Paragraph({
+          children: [
+            new ImageRun({
+              data: coverData.buffer,
+              transformation: { width: Math.round(coverData.width * scale), height: Math.round(coverData.height * scale) },
+              type: 'jpg',
+            }),
+          ],
+          spacing: { after: 200 },
+          alignment: AlignmentType.CENTER,
+        }),
+      )
     }
   }
 
   const doc = new Document({
     title: article.title ?? handle,
     styles: {
-      default: {
-        document: { run: { font: 'Calibri', size: 22 } },
-      },
+      default: { document: { run: { font: 'Calibri', size: 22 } } },
     },
     sections: [
       {
         properties: {
           page: { margin: { top: 2540, bottom: 2540, left: 2540, right: 2540 } },
         },
-        headers: {
-          default: new Header({
-            children: [
-              new Paragraph({
-                children: [
-                  new TextRun({
-                    text: `${article.authorName} (@${handle}) · ${publishedDate}`,
-                    italics: true,
-                    color: '888888',
-                    size: 18,
-                    font: 'Calibri',
-                  }),
-                ],
-              }),
-            ],
-          }),
-        },
-        footers: {
-          default: new Footer({
-            children: [
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                children: [
-                  new TextRun({ text: 'Exported from ArticleX · ', color: '888888', size: 16, font: 'Calibri' }),
-                  new ExternalHyperlink({
-                    children: [
-                      new TextRun({
-                        text: article.url,
-                        color: '0563C1',
-                        size: 16,
-                        font: 'Calibri',
-                        underline: { type: 'single' as const },
-                      }),
-                    ],
-                    link: article.url,
-                  }),
-                  new TextRun({ text: ' · Page ', color: '888888', size: 16, font: 'Calibri' }),
-                  new TextRun({ children: [PageNumber.CURRENT], color: '888888', size: 16 }),
-                ],
-              }),
-            ],
-          }),
-        },
         children: [
-          new Paragraph({
-            children: [
-              new TextRun({ text: article.authorName, bold: true, size: 22, font: 'Calibri' }),
-              new TextRun({ text: ` (@${handle}) · ${publishedDate}`, size: 18, color: '06B6D4', font: 'Calibri' }),
-            ],
-            spacing: { after: 120 },
-          }),
-          new Paragraph({ children: [new TextRun({ text: '', size: 12 })], spacing: { after: 100 } }),
           ...(article.title
             ? [
                 new Paragraph({
@@ -380,12 +291,53 @@ export const generateDOCX = async (article: ArticleObject): Promise<void> => {
                   ],
                   heading: HeadingLevel.HEADING_1,
                   border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: '7C3AED' } },
-                  spacing: { after: 260 },
+                  spacing: { after: 160 },
                 }),
               ]
             : []),
+          new Paragraph({
+            children: [
+              new TextRun({ text: article.authorName, bold: true, size: 22, font: 'Calibri' }),
+              new TextRun({ text: `  (@${handle})`, size: 18, color: '06B6D4', font: 'Calibri' }),
+              new TextRun({ text: `  ·  ${publishedDate}`, size: 18, color: '888888', font: 'Calibri' }),
+            ],
+            spacing: { after: 60 },
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: 'Source: ', size: 16, color: '888888', font: 'Calibri' }),
+              new ExternalHyperlink({
+                children: [
+                  new TextRun({
+                    text: article.url,
+                    size: 16,
+                    color: '0563C1',
+                    font: 'Calibri',
+                    underline: { type: 'single' as const },
+                  }),
+                ],
+                link: article.url,
+              }),
+            ],
+            spacing: { after: 260 },
+          }),
+          ...coverParagraphs,
           ...bodyParagraphs,
           ...imageParagraphs,
+          new Paragraph({
+            children: [
+              new TextRun({ text: '', size: 12 }),
+            ],
+            spacing: { before: 200 },
+            border: { top: { style: BorderStyle.SINGLE, size: 2, color: 'DDDDDD' } },
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: `Exported from ArticleX on ${new Date().toLocaleDateString()}`, size: 16, color: '888888', font: 'Calibri', italics: true }),
+            ],
+            spacing: { before: 80 },
+            alignment: AlignmentType.CENTER,
+          }),
         ],
       },
     ],
