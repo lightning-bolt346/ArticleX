@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Clock3, FileText, ImageIcon } from 'lucide-react'
+import { Check, Clock3, Copy, FileText, ImageIcon } from 'lucide-react'
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { ExportButtons } from './ExportButtons'
 import type { ArticleObject, ContentBlock, InlineAnnotation } from '../types/article'
@@ -93,6 +93,46 @@ function renderAnnotatedText(text: string, annotations: InlineAnnotation[]): Rea
   })
 }
 
+function CodeBlock({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(text)
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="group relative my-5 rounded-xl border border-border-subtle" style={{ background: 'var(--code-bg)' }}>
+      <div className="flex items-center justify-between border-b border-border-subtle px-4 py-2">
+        <span className="font-mono text-[11px] uppercase tracking-wider text-text-dim">
+          markdown
+        </span>
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="flex items-center gap-1.5 rounded-md px-2.5 py-1 font-mono text-[11px] text-text-muted transition-colors hover:bg-white/10 hover:text-text-primary"
+        >
+          {copied ? (
+            <>
+              <Check className="h-3 w-3 text-green-400" />
+              Copied
+            </>
+          ) : (
+            <>
+              <Copy className="h-3 w-3" />
+              Copy
+            </>
+          )}
+        </button>
+      </div>
+      <pre className="overflow-x-auto p-4 font-mono text-[13px] leading-[1.7]" style={{ color: 'var(--code-text)' }}>
+        <code>{text}</code>
+      </pre>
+    </div>
+  )
+}
+
 function RichContentRenderer({ blocks, tweetId }: { blocks: ContentBlock[]; tweetId: string }) {
   const [loadedImages, setLoadedImages] = useState<Record<number, boolean>>({})
   const groups: { type: string; items: { block: ContentBlock; index: number }[] }[] = []
@@ -117,7 +157,8 @@ function RichContentRenderer({ blocks, tweetId }: { blocks: ContentBlock[]; twee
               {group.items.map(({ block, index }) => (
                 <li
                   key={`${tweetId}-li-${index}`}
-                  className="text-[15px] leading-[1.85] text-[rgba(240,240,255,0.85)] marker:text-accent-violet"
+                  className="text-[15px] leading-[1.85] marker:text-accent-violet"
+                  style={{ color: 'var(--body-text)' }}
                 >
                   {renderAnnotatedText(block.text, block.annotations)}
                 </li>
@@ -128,15 +169,24 @@ function RichContentRenderer({ blocks, tweetId }: { blocks: ContentBlock[]; twee
 
         return group.items.map(({ block, index }) => {
           switch (block.type) {
-            case 'heading':
-              return (
+            case 'heading': {
+              const isH1 = block.level === 1
+              return isH1 ? (
                 <h2
-                  key={`${tweetId}-h-${index}`}
-                  className="mt-8 mb-3 font-jakarta text-[22px] font-bold leading-[1.3] tracking-[-0.01em] text-text-primary"
+                  key={`${tweetId}-h1-${index}`}
+                  className="mt-10 mb-4 border-b border-border-subtle pb-3 font-jakarta text-[24px] font-extrabold leading-[1.3] tracking-[-0.01em] text-text-primary"
                 >
                   {renderAnnotatedText(block.text, block.annotations)}
                 </h2>
+              ) : (
+                <h3
+                  key={`${tweetId}-h2-${index}`}
+                  className="mt-8 mb-3 font-jakarta text-[20px] font-bold leading-[1.3] tracking-[-0.01em] text-text-primary"
+                >
+                  {renderAnnotatedText(block.text, block.annotations)}
+                </h3>
               )
+            }
 
             case 'blockquote':
               return (
@@ -147,6 +197,9 @@ function RichContentRenderer({ blocks, tweetId }: { blocks: ContentBlock[]; twee
                   {renderAnnotatedText(block.text, block.annotations)}
                 </blockquote>
               )
+
+            case 'code-block':
+              return <CodeBlock key={`${tweetId}-cb-${index}`} text={block.text} />
 
             case 'image':
               return (
@@ -180,7 +233,8 @@ function RichContentRenderer({ blocks, tweetId }: { blocks: ContentBlock[]; twee
               return (
                 <p
                   key={`${tweetId}-p-${index}`}
-                  className="mb-[1em] text-[15px] leading-[1.85] text-[rgba(240,240,255,0.85)]"
+                  className="mb-[1em] text-[15px] leading-[1.85]"
+                  style={{ color: 'var(--body-text)' }}
                 >
                   {renderAnnotatedText(block.text, block.annotations)}
                 </p>
@@ -226,9 +280,7 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
 
   const fallbackLetter = article.authorName.charAt(0).toUpperCase() || 'A'
 
-  const trailingImages = hasRichContent
-    ? []
-    : article.images
+  const trailingImages = hasRichContent ? [] : article.images
 
   return (
     <motion.article
@@ -238,11 +290,10 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
       transition={{ type: 'spring', stiffness: 100, damping: 20, delay: 0.1 }}
       className="rounded-[28px] border p-10"
       style={{
-        background: 'rgba(13, 13, 20, 0.85)',
-        borderColor: 'rgba(255,255,255,0.07)',
+        background: 'var(--card-bg)',
+        borderColor: 'var(--card-border)',
         backdropFilter: 'blur(24px) saturate(180%)',
-        boxShadow:
-          '0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04), 0 40px 80px -20px rgba(124,58,237,0.15)',
+        boxShadow: 'var(--card-shadow)',
       }}
     >
       <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -275,7 +326,8 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
           type="button"
           data-cursor="pointer"
           onClick={() => window.open(article.url, '_blank', 'noopener,noreferrer')}
-          className="inline-flex w-fit items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.05] px-3 py-1.5 font-mono text-[11px] text-text-muted"
+          className="inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 font-mono text-[11px] text-text-muted"
+          style={{ background: 'var(--source-btn-bg)', borderColor: 'var(--source-btn-border)' }}
           whileHover={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
         >
           <span className="inline-flex h-[14px] w-[14px] items-center justify-center rounded-full bg-white text-[10px] font-semibold text-black">
@@ -320,7 +372,7 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
               layout
               className={`relative ${shouldShowToggle && !expanded ? 'max-h-[300px] overflow-hidden' : ''}`}
             >
-              <div className="text-left font-inter text-[15px] font-normal leading-[1.85] text-[rgba(240,240,255,0.85)]">
+              <div className="text-left font-inter text-[15px] font-normal leading-[1.85]" style={{ color: 'var(--body-text)' }}>
                 {paragraphs.map((paragraph, index) => (
                   <p
                     key={`${article.tweetId}-paragraph-${index}`}

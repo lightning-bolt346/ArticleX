@@ -84,6 +84,9 @@ function renderBlocksHtml(blocks: ContentBlock[]): string {
         }
         parts.push(`<li>${renderAnnotatedHtml(block.text, block.annotations)}</li>`)
         break
+      case 'code-block':
+        parts.push(`<pre class="code-block"><code>${escapeHtml(block.text)}</code></pre>`)
+        break
       case 'image':
         if (block.imageUrl) {
           parts.push(`<figure><img src="${escapeHtml(block.imageUrl)}" alt="Article media" loading="lazy" /></figure>`)
@@ -234,6 +237,20 @@ export const generateHTML = (article: ArticleObject): void => {
       width: 100%;
       border-radius: 12px;
       border: 1px solid rgba(255,255,255,0.08);
+    }
+    .body-text .code-block {
+      background: rgba(0,0,0,0.4);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px;
+      padding: 20px;
+      overflow-x: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.7;
+      color: rgba(240,240,255,0.8);
+      margin: 1.5em 0;
+      white-space: pre-wrap;
+      word-break: break-word;
     }
     .body-text a {
       color: #06b6d4;

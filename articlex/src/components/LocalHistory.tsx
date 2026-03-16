@@ -85,7 +85,7 @@ export const LocalHistory = ({ onSelect }: LocalHistoryProps) => {
       </div>
 
       {history.length === 0 ? (
-        <p className="rounded-2xl border border-white/[0.05] bg-white/[0.02] px-4 py-3 font-inter text-sm text-text-muted">
+        <p className="rounded-2xl border px-4 py-3 font-inter text-sm text-text-muted" style={{ background: 'var(--history-bg)', borderColor: 'var(--history-border)' }}>
           No conversions yet — your recent exports will appear here.
         </p>
       ) : (
@@ -102,7 +102,9 @@ export const LocalHistory = ({ onSelect }: LocalHistoryProps) => {
                 exit={{ y: -10, opacity: 0 }}
                 transition={{ duration: 0.25, delay: index * 0.05 }}
                 onClick={() => onSelect(entry.url)}
-                className="flex w-full items-start justify-between rounded-[14px] border border-white/[0.05] bg-white/[0.02] px-[18px] py-[14px] text-left transition-colors hover:bg-white/[0.04]"
+                className="flex w-full items-start justify-between rounded-[14px] border px-[18px] py-[14px] text-left transition-colors"
+                style={{ background: 'var(--history-bg)', borderColor: 'var(--history-border)' }}
+                whileHover={{ backgroundColor: 'var(--history-hover)' }}
               >
                 <div className="min-w-0">
                   <p className="font-mono text-xs text-accent-cyan">

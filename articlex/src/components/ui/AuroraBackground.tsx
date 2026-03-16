@@ -15,7 +15,7 @@ export const AuroraBackground = () => {
           left: -200,
           background: 'radial-gradient(circle, #7c3aed 0%, transparent 70%)',
           filter: 'blur(120px)',
-          opacity: 0.12,
+          opacity: 'var(--aurora-opacity-1)',
         }}
         animate={{ x: [0, 80, -40, 0], y: [0, -60, 40, 0] }}
         transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
@@ -30,7 +30,7 @@ export const AuroraBackground = () => {
           right: -100,
           background: 'radial-gradient(circle, #06b6d4 0%, transparent 70%)',
           filter: 'blur(100px)',
-          opacity: 0.09,
+          opacity: 'var(--aurora-opacity-2)',
         }}
         animate={{ x: [0, -60, 30, 0], y: [0, 50, -30, 0] }}
         transition={{ duration: 22, repeat: Infinity, ease: 'easeInOut' }}
@@ -45,7 +45,7 @@ export const AuroraBackground = () => {
           left: '35%',
           background: 'radial-gradient(circle, #a855f7 0%, transparent 70%)',
           filter: 'blur(140px)',
-          opacity: 0.07,
+          opacity: 'var(--aurora-opacity-3)',
         }}
         animate={{ x: [0, 40, -20, 0], y: [0, -30, 20, 0] }}
         transition={{ duration: 26, repeat: Infinity, ease: 'easeInOut' }}
@@ -55,7 +55,7 @@ export const AuroraBackground = () => {
         className="absolute inset-0"
         style={{
           backgroundImage:
-            'linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)',
+            `linear-gradient(var(--grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--grid-line) 1px, transparent 1px)`,
           backgroundSize: '50px 50px',
         }}
       />

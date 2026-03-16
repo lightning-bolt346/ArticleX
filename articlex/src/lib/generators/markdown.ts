@@ -63,6 +63,9 @@ function renderBlocksMd(blocks: ContentBlock[]): string {
       case 'blockquote':
         parts.push(`> ${annotated}`)
         break
+      case 'code-block':
+        parts.push('```\n' + block.text + '\n```')
+        break
       case 'image':
         if (block.imageUrl) {
           parts.push(`![Article media](${block.imageUrl})`)

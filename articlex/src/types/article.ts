@@ -6,8 +6,9 @@ export interface InlineAnnotation {
 }
 
 export interface ContentBlock {
-  type: 'paragraph' | 'heading' | 'list-item' | 'blockquote' | 'image'
+  type: 'paragraph' | 'heading' | 'list-item' | 'blockquote' | 'image' | 'code-block'
   text: string
+  level?: number
   imageUrl?: string
   annotations: InlineAnnotation[]
 }
