@@ -18,6 +18,8 @@ import { generateDOCX } from '../lib/generators/docx'
 import { generateHTML } from '../lib/generators/html'
 import { generateMarkdown } from '../lib/generators/markdown'
 import { generatePDF } from '../lib/generators/pdf'
+import { ReadingSettingsButton } from './ui/ReadingSettings'
+import { getReadingConfig, readingFontClass, readingWidthClass, type ReadingConfig } from '../lib/reading-config'
 import { generatePNG } from '../lib/generators/png'
 import type { ArticleObject, ContentBlock, InlineAnnotation } from '../types/article'
 
@@ -352,6 +354,7 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
   const [expanded, setExpanded] = useState(false)
   const [avatarError, setAvatarError] = useState(false)
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
+  const [readingConfig, setReadingConfig] = useState<ReadingConfig>(getReadingConfig)
   const articleRef = useRef<HTMLElement>(null)
 
   const hasRichContent = article.contentBlocks.length > 0
@@ -405,7 +408,8 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
                 src={article.authorAvatar}
                 alt={article.authorName}
                 onError={() => setAvatarError(true)}
-                className="h-[52px] w-[52px] rounded-full object-cover ring-2 ring-[rgba(124,58,237,0.4)] ring-offset-2 ring-offset-bg-base"
+                onClick={() => openLightbox(article.authorAvatar)}
+                className="h-[52px] w-[52px] cursor-pointer rounded-full object-cover ring-2 ring-[rgba(124,58,237,0.4)] ring-offset-2 ring-offset-bg-base transition-transform hover:scale-105"
               />
             ) : (
               <div className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-[linear-gradient(135deg,#7c3aed,#06b6d4)] font-jakarta text-xl font-bold text-white ring-2 ring-[rgba(124,58,237,0.4)] ring-offset-2 ring-offset-bg-base">
@@ -433,6 +437,7 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
             </motion.button>
 
             <ExportDropdown article={article} articleRef={articleRef} onExport={onExport} />
+            <ReadingSettingsButton config={readingConfig} onChange={setReadingConfig} />
           </div>
         </section>
 
@@ -460,13 +465,13 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
 
         <section className="relative">
           {hasRichContent ? (
-            <div className="text-left font-inter">
+            <div className={`text-left ${readingFontClass[readingConfig.fontFamily]} ${readingWidthClass[readingConfig.maxWidth]}`} style={{ fontSize: `${readingConfig.fontSize}px`, lineHeight: readingConfig.lineHeight }}>
               <RichContentRenderer blocks={article.contentBlocks} tweetId={article.tweetId} onImageOpen={openLightbox} />
             </div>
           ) : (
             <>
               <motion.div layout className={`relative ${shouldShowToggle && !expanded ? 'max-h-[300px] overflow-hidden' : ''}`}>
-                <div className="text-left font-inter text-[15px] font-normal leading-[1.85]" style={{ color: 'var(--body-text)' }}>
+                <div className={`text-left ${readingFontClass[readingConfig.fontFamily]} font-normal ${readingWidthClass[readingConfig.maxWidth]}`} style={{ color: 'var(--body-text)', fontSize: `${readingConfig.fontSize}px`, lineHeight: readingConfig.lineHeight }}>
                   {paragraphs.map((paragraph, index) => (
                     <p key={`${article.tweetId}-paragraph-${index}`} className={index === paragraphs.length - 1 ? '' : 'mb-[1em]'} style={{ whiteSpace: 'pre-line' }}>
                       {paragraph}
