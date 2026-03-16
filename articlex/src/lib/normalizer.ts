@@ -312,12 +312,81 @@ function normalizeRegularTweet(
   }
 }
 
-export const normalizeTweet = (apiResponse: Record<string, unknown>): ArticleObject => {
+interface SyndicationTweet {
+  id_str: string
+  text: string
+  user?: { screen_name?: string; name?: string; profile_image_url_https?: string }
+  entities?: { urls?: { expanded_url?: string; display_url?: string }[] }
+}
+
+function normalizeThreadTweet(
+  tweet: Record<string, unknown>,
+  author: Record<string, unknown>,
+  threadTweets: SyndicationTweet[],
+): ArticleObject {
+  const rootText = normalizeBodyText(String(tweet.text ?? ''))
+  const allTexts = [rootText]
+
+  for (const t of threadTweets) {
+    const cleaned = normalizeBodyText(t.text)
+    if (cleaned) allTexts.push(cleaned)
+  }
+
+  const combinedBody = allTexts.join('\n\n')
+  let title: string | null = null
+  let body = combinedBody
+
+  const lines = body.split('\n')
+  const firstLine = lines[0]?.trim() ?? ''
+  if (shouldUseAsTitle(firstLine)) {
+    title = firstLine
+    body = lines.slice(1).join('\n').trim()
+  }
+
+  const contentBlocks = textToContentBlocks(body)
+
+  const mediaSource = Array.isArray((tweet.media as { photos?: unknown[] })?.photos)
+    ? (tweet.media as { photos: { url?: string; src?: string }[] }).photos
+    : Array.isArray(tweet.media)
+      ? (tweet.media as { url?: string; src?: string }[])
+      : []
+
+  const images = mediaSource
+    .map((media) => media?.url ?? media?.src)
+    .filter((value): value is string => typeof value === 'string' && value.length > 0)
+    .slice(0, 6)
+
+  const wordCount = body.split(/\s+/).filter(Boolean).length
+
+  return {
+    tweetId: String(tweet.id ?? ''),
+    url: String(tweet.url ?? ''),
+    authorName: String(author.name ?? ''),
+    authorHandle: `@${String(author.screen_name ?? '').replace(/^@/, '')}`,
+    authorAvatar: String(author.avatar_url ?? '').replace('_normal', '_400x400'),
+    publishedAt: normalizePublishedAt(tweet.created_at as string | undefined),
+    title,
+    body,
+    contentBlocks,
+    images,
+    wordCount,
+    readingTime: Math.ceil(wordCount / 200),
+  }
+}
+
+export const normalizeTweet = (
+  apiResponse: Record<string, unknown>,
+  threadTweets?: SyndicationTweet[],
+): ArticleObject => {
   const tweet = (apiResponse?.tweet ?? {}) as Record<string, unknown>
   const author = (tweet.author ?? {}) as Record<string, unknown>
 
   if (tweet.article) {
     return normalizeArticleTweet(tweet, author)
+  }
+
+  if (threadTweets && threadTweets.length > 0) {
+    return normalizeThreadTweet(tweet, author, threadTweets)
   }
 
   return normalizeRegularTweet(tweet, author)
