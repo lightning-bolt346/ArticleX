@@ -9,4 +9,4 @@ Convert any X (Twitter) long-form post to HTML, Markdown, or DOCX.
 5. Change `base` in vite.config.ts to match your repo name
 
 ### Tech Stack
-Vite · React · TypeScript · Tailwind CSS · Framer Motion · docx
+Vite · React · TypeScript · Tailwind CSS · Framer Motion · doc
