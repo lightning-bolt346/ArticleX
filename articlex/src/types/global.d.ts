@@ -21,5 +21,5 @@ interface RazorpayConstructor {
 }
 
 interface Window {
-  Razorpay: RazorpayConstructor
+  Razorpay?: RazorpayConstructor
 }

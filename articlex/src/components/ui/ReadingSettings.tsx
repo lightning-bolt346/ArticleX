@@ -2,7 +2,12 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Minus, Plus, Settings2, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { READING_DEFAULTS, saveReadingConfig, type ReadingConfig } from '../../lib/reading-config'
+import {
+  READING_DEFAULTS,
+  READING_THEME_OPTIONS,
+  saveReadingConfig,
+  type ReadingConfig,
+} from '../../lib/reading-config'
 
 const FONT_OPTIONS: { value: ReadingConfig['fontFamily']; label: string; preview: string }[] = [
   { value: 'inter', label: 'Inter', preview: 'Aa' },
@@ -97,6 +102,27 @@ export const ReadingSettingsButton = ({ config, onChange }: ReadingSettingsProps
                   <button type="button" onClick={() => update({ lineHeight: Math.max(1.2, +(config.lineHeight - 0.1).toFixed(1)) })} className="flex h-8 w-8 items-center justify-center rounded-lg border border-border-subtle text-text-muted hover:text-text-primary"><Minus className="h-4 w-4" /></button>
                   <input type="range" min={12} max={25} value={Math.round(config.lineHeight * 10)} onChange={(e) => update({ lineHeight: +e.target.value / 10 })} className="h-1 flex-1 cursor-pointer appearance-none rounded-full bg-border-subtle accent-accent-violet" />
                   <button type="button" onClick={() => update({ lineHeight: Math.min(2.5, +(config.lineHeight + 0.1).toFixed(1)) })} className="flex h-8 w-8 items-center justify-center rounded-lg border border-border-subtle text-text-muted hover:text-text-primary"><Plus className="h-4 w-4" /></button>
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 block font-mono text-[10px] uppercase tracking-wider text-text-muted">Theme</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {READING_THEME_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => update({ theme: opt.value })}
+                      className={`rounded-lg border px-2.5 py-2 text-left transition-colors ${
+                        config.theme === opt.value
+                          ? 'border-accent-violet bg-accent-violet/10 text-accent-violet'
+                          : 'border-border-subtle text-text-muted hover:text-text-primary'
+                      }`}
+                    >
+                      <p className="font-inter text-[11px] font-semibold leading-tight">{opt.label}</p>
+                      <p className="mt-0.5 font-inter text-[9px] opacity-80">{opt.blurb}</p>
+                    </button>
+                  ))}
                 </div>
               </div>
 

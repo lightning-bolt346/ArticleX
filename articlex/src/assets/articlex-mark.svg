@@ -1,6 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">ArticleX brand mark</title>
+  <desc id="desc">A premium rounded-square emblem with AX monogram and subtle glow.</desc>
   <defs>
-    <linearGradient id="bg" x1="8" y1="8" x2="120" y2="120" gradientUnits="userSpaceOnUse">
+    <linearGradient id="bg" x1="10" y1="8" x2="118" y2="124" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#111827" />
       <stop offset="1" stop-color="#1f2937" />
     </linearGradient>
@@ -9,12 +11,22 @@
       <stop offset="0.52" stop-color="#7c3aed" />
       <stop offset="1" stop-color="#06b6d4" />
     </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="2.8" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
   </defs>
+
   <rect x="8" y="8" width="112" height="112" rx="30" fill="url(#bg)" />
   <rect x="8" y="8" width="112" height="112" rx="30" fill="none" stroke="#ffffff" stroke-opacity="0.08" />
+
   <path d="M41 32h35l12 12v52H41z" fill="#ffffff" fill-opacity="0.06" />
   <path d="M76 32v12h12" fill="none" stroke="#ffffff" stroke-opacity="0.12" stroke-width="2" />
-  <g fill="none" stroke="url(#stroke)" stroke-linecap="round" stroke-width="8">
+
+  <g filter="url(#glow)" fill="none" stroke="url(#stroke)" stroke-linecap="round" stroke-width="8">
     <path d="M31 93 57 64 31 35" />
     <path d="M97 35 71 64 97 93" />
     <path d="M52 88 76 40" />

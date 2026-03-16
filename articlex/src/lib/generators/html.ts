@@ -156,6 +156,23 @@ export const generateHTML = (article: ArticleObject): void => {
       padding: 60px 24px 120px;
       line-height: 1.75;
       font-size: 16px;
+      position: relative;
+    }
+    .brand-watermark {
+      position: absolute;
+      top: 20px;
+      right: 18px;
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: linear-gradient(135deg, rgba(124,58,237,0.16), rgba(6,182,212,0.1));
+      color: rgba(240,240,255,0.52);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      display: grid;
+      place-items: center;
     }
     .header {
       display: flex;
@@ -298,6 +315,7 @@ export const generateHTML = (article: ArticleObject): void => {
   </style>
 </head>
 <body>
+  <div class="brand-watermark" aria-hidden="true">AX</div>
   <header class="header">
     <img class="avatar" src="${escapeHtml(article.authorAvatar)}" alt="${escapeHtml(article.authorName)}" />
     <div>
@@ -317,7 +335,7 @@ export const generateHTML = (article: ArticleObject): void => {
   ${imagesBlock}
 
   <footer class="footer">
-    <div>Exported with ArticleX · Original post → <a href="${escapeHtml(article.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(article.url)}</a></div>
+    <div>Exported with ArticleX ✦ Original post → <a href="${escapeHtml(article.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(article.url)}</a></div>
     <a class="source-badge" href="${escapeHtml(article.url)}" target="_blank" rel="noopener noreferrer">View Source</a>
     <div style="margin-top: 12px;">Exported on ${escapeHtml(exportDate)}</div>
   </footer>

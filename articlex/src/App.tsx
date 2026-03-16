@@ -16,8 +16,10 @@ import {
 import { addToHistory, updateFormats } from './lib/history'
 import { normalizeTweet } from './lib/normalizer'
 import type { ArticleObject } from './types/article'
+import brandMark from './assets/articlex-mark.svg'
 
 type Theme = 'dark' | 'light'
+type RazorpayStatus = 'checking' | 'working' | 'unavailable'
 
 const THEME_KEY = 'articlex-theme'
 
@@ -26,6 +28,14 @@ function getStoredTheme(): Theme {
   const stored = window.localStorage.getItem(THEME_KEY)
   if (stored === 'light' || stored === 'dark') return stored
   return 'dark'
+}
+
+function getInitialRazorpayStatus(): RazorpayStatus {
+  if (typeof window === 'undefined') return 'checking'
+  const key = import.meta.env.VITE_RAZORPAY_KEY_ID
+  if (!key) return 'unavailable'
+  if (window.Razorpay) return 'working'
+  return 'checking'
 }
 
 const headlineRows = [
@@ -50,12 +60,30 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [prefillUrl, setPrefillUrl] = useState('')
   const [theme, setTheme] = useState<Theme>(getStoredTheme)
+  const [razorpayStatus, setRazorpayStatus] = useState<RazorpayStatus>(getInitialRazorpayStatus)
   const previewRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
     window.localStorage.setItem(THEME_KEY, theme)
   }, [theme])
+
+  useEffect(() => {
+    const key = import.meta.env.VITE_RAZORPAY_KEY_ID
+    if (!key || window.Razorpay) return
+    const script = document.querySelector('script[src*="checkout.razorpay.com/v1/checkout.js"]')
+    if (!(script instanceof HTMLScriptElement)) return
+    const onReady = () => setRazorpayStatus(window.Razorpay ? 'working' : 'unavailable')
+    const onError = () => setRazorpayStatus('unavailable')
+    const timeout = window.setTimeout(() => setRazorpayStatus(window.Razorpay ? 'working' : 'unavailable'), 6000)
+    script.addEventListener('load', onReady)
+    script.addEventListener('error', onError)
+    return () => {
+      window.clearTimeout(timeout)
+      script.removeEventListener('load', onReady)
+      script.removeEventListener('error', onError)
+    }
+  }, [])
 
   const toggleTheme = useCallback(() => {
     setTheme((current) => (current === 'dark' ? 'light' : 'dark'))
@@ -125,6 +153,9 @@ function App() {
             animate="show"
             className="mt-6 font-jakarta text-[36px] font-extrabold leading-[1.1] tracking-[-0.03em] text-text-primary md:text-[68px]"
           >
+            <span className="mb-4 flex items-center justify-center opacity-75">
+              <img src={brandMark} alt="ArticleX logo" className="h-8 w-8 md:h-10 md:w-10" />
+            </span>
             {headlineRows.map((row, rowIndex) => (
               <span key={`row-${rowIndex}`} className="block">
                 {row.map((word, wordIndex) => (
@@ -207,7 +238,12 @@ function App() {
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
             <div>
               <p className="font-jakarta text-lg font-bold text-text-primary">
-                Article<span className="bg-[linear-gradient(135deg,#7c3aed,#06b6d4)] bg-clip-text text-transparent">X</span>
+                <span className="inline-flex items-center gap-2">
+                  <img src={brandMark} alt="" className="h-4 w-4 opacity-80" />
+                  <span>
+                    Article<span className="bg-[linear-gradient(135deg,#7c3aed,#06b6d4)] bg-clip-text text-transparent">X</span>
+                  </span>
+                </span>
               </p>
               <p className="mt-1 font-inter text-xs text-text-muted">Turn X posts into beautiful documents.</p>
             </div>
@@ -234,7 +270,7 @@ function App() {
         </div>
       </footer>
 
-      <TipButton />
+      <TipButton visible={Boolean(article)} razorpayStatus={razorpayStatus} />
     </div>
   )
 }
