@@ -41,6 +41,7 @@ interface DraftEntity {
     type: string
     data: {
       url?: string
+      markdown?: string
       mediaItems?: { mediaId: string }[]
     }
   }
@@ -110,17 +111,46 @@ function parseAnnotations(
   return annotations.sort((a, b) => a.offset - b.offset)
 }
 
-function resolveMediaUrl(
+function stripCodeFence(raw: string): string {
+  let text = raw.trim()
+  const fenceStart = /^```\w*\n?/
+  const fenceEnd = /\n?```$/
+  text = text.replace(fenceStart, '').replace(fenceEnd, '')
+  return text
+}
+
+function resolveAtomicBlock(
   block: DraftBlock,
   entityMap: Map<number, DraftEntity['value']>,
   mediaLookup: Map<string, string>,
-): string | undefined {
-  if (!Array.isArray(block.entityRanges) || block.entityRanges.length === 0) return undefined
+): ContentBlock | null {
+  if (!Array.isArray(block.entityRanges) || block.entityRanges.length === 0) return null
   const entityRef = entityMap.get(block.entityRanges[0].key)
-  if (entityRef?.type !== 'MEDIA') return undefined
-  const mediaItems = entityRef.data?.mediaItems
-  if (!Array.isArray(mediaItems) || mediaItems.length === 0) return undefined
-  return mediaLookup.get(String(mediaItems[0].mediaId))
+  if (!entityRef) return null
+
+  if (entityRef.type === 'MEDIA') {
+    const mediaItems = entityRef.data?.mediaItems
+    if (!Array.isArray(mediaItems) || mediaItems.length === 0) return null
+    const imageUrl = mediaLookup.get(String(mediaItems[0].mediaId))
+    if (imageUrl) {
+      return { type: 'image', text: '', imageUrl, annotations: [] }
+    }
+  }
+
+  if (entityRef.type === 'MARKDOWN') {
+    const markdown = entityRef.data?.markdown
+    if (typeof markdown === 'string' && markdown.trim()) {
+      return { type: 'code-block', text: stripCodeFence(markdown), annotations: [] }
+    }
+  }
+
+  return null
+}
+
+function headingLevel(blockType: string): number {
+  if (blockType === 'header-one') return 1
+  if (blockType === 'header-three') return 3
+  return 2
 }
 
 function parseArticleBlocks(
@@ -135,9 +165,9 @@ function parseArticleBlocks(
     const text = block.text ?? ''
 
     if (blockType === 'atomic') {
-      const imageUrl = resolveMediaUrl(block, entityMap, mediaLookup)
-      if (imageUrl) {
-        contentBlocks.push({ type: 'image', text: '', imageUrl, annotations: [] })
+      const resolved = resolveAtomicBlock(block, entityMap, mediaLookup)
+      if (resolved) {
+        contentBlocks.push(resolved)
       }
       continue
     }
@@ -150,7 +180,12 @@ function parseArticleBlocks(
       case 'header-one':
       case 'header-two':
       case 'header-three':
-        contentBlocks.push({ type: 'heading', text, annotations })
+        contentBlocks.push({
+          type: 'heading',
+          text,
+          level: headingLevel(blockType),
+          annotations,
+        })
         break
       case 'unordered-list-item':
       case 'ordered-list-item':

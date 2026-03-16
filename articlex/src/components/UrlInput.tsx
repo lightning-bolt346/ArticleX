@@ -54,15 +54,15 @@ export const UrlInput = ({
       <motion.div
         className="flex flex-col gap-3 rounded-[20px] border p-2 shadow-glass sm:flex-row sm:items-center"
         style={{
-          background: 'rgba(255,255,255,0.025)',
-          borderColor: 'rgba(255,255,255,0.07)',
+          background: 'var(--glass-bg)',
+          borderColor: 'var(--glass-border)',
           backdropFilter: 'blur(20px)',
         }}
         animate={{
-          borderColor: isFocused ? 'rgba(124,58,237,0.45)' : 'rgba(255,255,255,0.07)',
+          borderColor: isFocused ? 'rgba(124,58,237,0.45)' : 'var(--glass-border)',
           boxShadow: isFocused
-            ? 'inset 0 1px 0 rgba(255,255,255,0.05), 0 8px 32px rgba(0,0,0,0.5), 0 0 0 4px rgba(124,58,237,0.08)'
-            : 'inset 0 1px 0 rgba(255,255,255,0.05), 0 8px 32px rgba(0,0,0,0.5)',
+            ? 'inset 0 1px 0 rgba(255,255,255,0.05), 0 8px 32px rgba(0,0,0,0.15), 0 0 0 4px rgba(124,58,237,0.08)'
+            : 'inset 0 1px 0 rgba(255,255,255,0.05), 0 8px 32px rgba(0,0,0,0.15)',
         }}
         transition={{ duration: 0.2 }}
       >
@@ -130,7 +130,8 @@ export const UrlInput = ({
             onClick={() => {
               setUrl(sample.value)
             }}
-            className="cursor-pointer rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 font-mono text-[11px] text-text-muted transition-colors hover:bg-white/[0.08]"
+            className="cursor-pointer rounded-full border px-3 py-1.5 font-mono text-[11px] text-text-muted transition-colors hover:opacity-80"
+            style={{ background: 'var(--badge-bg)', borderColor: 'var(--badge-border)' }}
             whileHover={{ scale: 1.03 }}
           >
             {sample.label}

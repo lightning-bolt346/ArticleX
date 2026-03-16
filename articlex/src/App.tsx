@@ -1,11 +1,12 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { AlertCircle } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArticlePreview } from './components/ArticlePreview'
 import { LocalHistory } from './components/LocalHistory'
 import { UrlInput } from './components/UrlInput'
 import { AuroraBackground } from './components/ui/AuroraBackground'
 import { CustomCursor } from './components/ui/CustomCursor'
+import { ThemeToggle } from './components/ui/ThemeToggle'
 import {
   FxTwitterErrorCode,
   type FxTwitterError,
@@ -14,6 +15,17 @@ import {
 import { addToHistory, updateFormats } from './lib/history'
 import { normalizeTweet } from './lib/normalizer'
 import type { ArticleObject } from './types/article'
+
+type Theme = 'dark' | 'light'
+
+const THEME_KEY = 'articlex-theme'
+
+function getStoredTheme(): Theme {
+  if (typeof window === 'undefined') return 'dark'
+  const stored = window.localStorage.getItem(THEME_KEY)
+  if (stored === 'light' || stored === 'dark') return stored
+  return 'dark'
+}
 
 const headlineRows = [
   [
@@ -55,7 +67,17 @@ function App() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [prefillUrl, setPrefillUrl] = useState('')
+  const [theme, setTheme] = useState<Theme>(getStoredTheme)
   const previewRef = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    window.localStorage.setItem(THEME_KEY, theme)
+  }, [theme])
+
+  const toggleTheme = useCallback(() => {
+    setTheme((current) => (current === 'dark' ? 'light' : 'dark'))
+  }, [])
 
   const resolveErrorMessage = (error: unknown): string => {
     const typedError = error as FxTwitterError
@@ -190,6 +212,7 @@ function App() {
     <div className="relative min-h-screen overflow-x-clip bg-bg-base">
       <AuroraBackground />
       <CustomCursor />
+      <ThemeToggle theme={theme} onToggle={toggleTheme} />
 
       <main className="relative z-10 mx-auto w-full max-w-3xl px-4">
         {hero}

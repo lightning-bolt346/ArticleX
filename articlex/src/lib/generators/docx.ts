@@ -128,6 +128,22 @@ function blocksToDocxParagraphs(blocks: ContentBlock[]): Paragraph[] {
         )
         break
 
+      case 'code-block':
+        paragraphs.push(
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: block.text,
+                size: 18,
+                font: 'Courier New',
+              }),
+            ],
+            indent: { left: 360 },
+            spacing: { before: 160, after: 160 },
+          }),
+        )
+        break
+
       case 'image':
         if (block.imageUrl) {
           paragraphs.push(
