@@ -119,7 +119,7 @@ function App() {
     void handleSuccess(url)
   }
 
-  const handleExport = (format: 'html' | 'md' | 'docx') => {
+  const handleExport = (format: string) => {
     if (!article) {
       return
     }

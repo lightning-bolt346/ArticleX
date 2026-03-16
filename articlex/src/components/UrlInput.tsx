@@ -20,6 +20,10 @@ const sampleUrls = [
     label: '📖 Essay',
     value: 'https://x.com/digiii/status/2008518313995911533',
   },
+  {
+    label: '💬 Tweet',
+    value: 'https://x.com/naval/status/1002103360646823936',
+  },
 ]
 
 export const UrlInput = ({

@@ -49,8 +49,8 @@ export const CustomCursor = () => {
   return (
     <>
       <motion.div
-        className="pointer-events-none fixed left-0 top-0 z-50 h-2 w-2 rounded-full bg-white"
-        style={{ x: dotX, y: dotY }}
+        className="pointer-events-none fixed left-0 top-0 z-50 h-2 w-2 rounded-full"
+        style={{ x: dotX, y: dotY, background: 'var(--cursor-dot)' }}
         animate={{
           opacity: isPointer ? 0 : hasMoved ? 1 : 0,
           scale: isPointer ? 0.5 : 1,
@@ -67,7 +67,7 @@ export const CustomCursor = () => {
           marginLeft: -16,
           marginTop: -16,
           borderWidth: 1.5,
-          borderColor: 'rgba(255,255,255,0.4)',
+          borderColor: 'var(--cursor-ring)',
         }}
         animate={{
           opacity: hasMoved ? 1 : 0,
