@@ -280,7 +280,7 @@ export const generateDOCX = async (article: ArticleObject): Promise<void> => {
     sections: [
       {
         properties: {
-          page: { margin: { top: 2540, bottom: 2540, left: 2540, right: 2540 } },
+          page: { margin: { top: 1440, bottom: 1440, left: 1440, right: 1440 } },
         },
         children: [
           ...(article.title
@@ -333,7 +333,16 @@ export const generateDOCX = async (article: ArticleObject): Promise<void> => {
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: `Exported from ArticleX on ${new Date().toLocaleDateString()}`, size: 16, color: '888888', font: 'Calibri', italics: true }),
+              new TextRun({ text: `Exported from `, size: 16, color: '888888', font: 'Calibri', italics: true }),
+              new TextRun({ text: 'ArticleX', size: 16, color: '7C3AED', font: 'Calibri', bold: true }),
+              new TextRun({ text: ` · Free forever · `, size: 16, color: '888888', font: 'Calibri', italics: true }),
+              new ExternalHyperlink({
+                children: [
+                  new TextRun({ text: 'articlex.app', size: 16, color: '0563C1', font: 'Calibri', underline: { type: 'single' as const } }),
+                ],
+                link: 'https://lightning-bolt346.github.io/ArticleX/',
+              }),
+              new TextRun({ text: ` · ${new Date().toLocaleDateString()}`, size: 16, color: '888888', font: 'Calibri', italics: true }),
             ],
             spacing: { before: 80 },
             alignment: AlignmentType.CENTER,

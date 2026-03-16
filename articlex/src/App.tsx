@@ -10,7 +10,7 @@ import { ThemeToggle } from './components/ui/ThemeToggle'
 import {
   FxTwitterErrorCode,
   type FxTwitterError,
-  fetchThread,
+  fetchTweet,
 } from './lib/fxtwitter'
 import { addToHistory, updateFormats } from './lib/history'
 import { normalizeTweet } from './lib/normalizer'
@@ -104,8 +104,8 @@ function App() {
     setPrefillUrl(url)
 
     try {
-      const { payload, threadTweets } = await fetchThread(url)
-      const normalized = normalizeTweet(payload, threadTweets)
+      const payload = await fetchTweet(url)
+      const normalized = normalizeTweet(payload)
       setArticle(normalized)
       addToHistory(normalized, [])
     } catch (error) {
