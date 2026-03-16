@@ -1,20 +1,204 @@
 import { motion } from 'framer-motion'
 import { Clock3, FileText, ImageIcon } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { ExportButtons } from './ExportButtons'
-import type { ArticleObject } from '../types/article'
+import type { ArticleObject, ContentBlock, InlineAnnotation } from '../types/article'
 
 interface ArticlePreviewProps {
   article: ArticleObject
   onExport: (format: 'html' | 'md' | 'docx') => void
 }
 
+interface TextSegment {
+  text: string
+  bold: boolean
+  italic: boolean
+  link?: string
+}
+
+function segmentText(text: string, annotations: InlineAnnotation[]): TextSegment[] {
+  if (!text || annotations.length === 0) {
+    return [{ text, bold: false, italic: false }]
+  }
+
+  const boundaries = new Set<number>([0, text.length])
+  for (const ann of annotations) {
+    boundaries.add(ann.offset)
+    boundaries.add(Math.min(ann.offset + ann.length, text.length))
+  }
+
+  const sorted = Array.from(boundaries).sort((a, b) => a - b)
+  const segments: TextSegment[] = []
+
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const start = sorted[i]
+    const end = sorted[i + 1]
+    const slice = text.slice(start, end)
+    if (!slice) continue
+
+    let bold = false
+    let italic = false
+    let link: string | undefined
+
+    for (const ann of annotations) {
+      if (ann.offset <= start && start < ann.offset + ann.length) {
+        if (ann.type === 'bold') bold = true
+        if (ann.type === 'italic') italic = true
+        if (ann.type === 'link') link = ann.url
+      }
+    }
+
+    segments.push({ text: slice, bold, italic, link })
+  }
+
+  return segments
+}
+
+function renderAnnotatedText(text: string, annotations: InlineAnnotation[]): ReactNode {
+  const segments = segmentText(text, annotations)
+  if (segments.length === 1 && !segments[0].bold && !segments[0].italic && !segments[0].link) {
+    return text
+  }
+
+  return segments.map((segment, i) => {
+    let node: ReactNode = segment.text
+
+    if (segment.bold) {
+      node = <strong key={`b-${i}`} className="font-semibold text-text-primary">{node}</strong>
+    }
+
+    if (segment.italic) {
+      node = <em key={`i-${i}`}>{node}</em>
+    }
+
+    if (segment.link) {
+      node = (
+        <a
+          key={`l-${i}`}
+          href={segment.link}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-accent-cyan underline underline-offset-4 decoration-accent-cyan/40 hover:text-accent-violet hover:decoration-accent-violet/40 transition-colors"
+        >
+          {node}
+        </a>
+      )
+    }
+
+    if (!segment.bold && !segment.italic && !segment.link) {
+      return <span key={`s-${i}`}>{node}</span>
+    }
+
+    return node
+  })
+}
+
+function RichContentRenderer({ blocks, tweetId }: { blocks: ContentBlock[]; tweetId: string }) {
+  const [loadedImages, setLoadedImages] = useState<Record<number, boolean>>({})
+  const groups: { type: string; items: { block: ContentBlock; index: number }[] }[] = []
+
+  for (let i = 0; i < blocks.length; i++) {
+    const block = blocks[i]
+    const last = groups[groups.length - 1]
+
+    if (block.type === 'list-item' && last?.type === 'list-item') {
+      last.items.push({ block, index: i })
+    } else {
+      groups.push({ type: block.type, items: [{ block, index: i }] })
+    }
+  }
+
+  return (
+    <>
+      {groups.map((group, gi) => {
+        if (group.type === 'list-item') {
+          return (
+            <ul key={`g-${gi}`} className="my-4 ml-5 list-disc space-y-2">
+              {group.items.map(({ block, index }) => (
+                <li
+                  key={`${tweetId}-li-${index}`}
+                  className="text-[15px] leading-[1.85] text-[rgba(240,240,255,0.85)] marker:text-accent-violet"
+                >
+                  {renderAnnotatedText(block.text, block.annotations)}
+                </li>
+              ))}
+            </ul>
+          )
+        }
+
+        return group.items.map(({ block, index }) => {
+          switch (block.type) {
+            case 'heading':
+              return (
+                <h2
+                  key={`${tweetId}-h-${index}`}
+                  className="mt-8 mb-3 font-jakarta text-[22px] font-bold leading-[1.3] tracking-[-0.01em] text-text-primary"
+                >
+                  {renderAnnotatedText(block.text, block.annotations)}
+                </h2>
+              )
+
+            case 'blockquote':
+              return (
+                <blockquote
+                  key={`${tweetId}-bq-${index}`}
+                  className="my-4 border-l-[3px] border-accent-violet/50 pl-5 text-[15px] italic leading-[1.85] text-text-muted"
+                >
+                  {renderAnnotatedText(block.text, block.annotations)}
+                </blockquote>
+              )
+
+            case 'image':
+              return (
+                <figure key={`${tweetId}-img-${index}`} className="my-6">
+                  <div className="relative overflow-hidden rounded-2xl border border-border-subtle">
+                    {!loadedImages[index] && (
+                      <div
+                        className="absolute inset-0 animate-[shimmer_1.5s_infinite]"
+                        style={{
+                          background:
+                            'linear-gradient(90deg, var(--bg-elevated) 25%, var(--bg-surface) 50%, var(--bg-elevated) 75%)',
+                          backgroundSize: '200% 100%',
+                        }}
+                      />
+                    )}
+                    <img
+                      src={block.imageUrl}
+                      alt="Article media"
+                      className={`w-full object-contain transition-opacity duration-300 ${
+                        loadedImages[index] ? 'opacity-100' : 'opacity-0'
+                      }`}
+                      onLoad={() =>
+                        setLoadedImages((state) => ({ ...state, [index]: true }))
+                      }
+                    />
+                  </div>
+                </figure>
+              )
+
+            default:
+              return (
+                <p
+                  key={`${tweetId}-p-${index}`}
+                  className="mb-[1em] text-[15px] leading-[1.85] text-[rgba(240,240,255,0.85)]"
+                >
+                  {renderAnnotatedText(block.text, block.annotations)}
+                </p>
+              )
+          }
+        })
+      })}
+    </>
+  )
+}
+
 export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
   const [expanded, setExpanded] = useState(false)
   const [avatarError, setAvatarError] = useState(false)
-  const [loadedImages, setLoadedImages] = useState<Record<number, boolean>>({})
 
-  const shouldShowToggle = article.body.length > 700
+  const hasRichContent = article.contentBlocks.length > 0
+  const shouldShowToggle = !hasRichContent && article.body.length > 700
+
   const paragraphs = useMemo(
     () => article.body.split('\n').map((line) => line.trim()).filter(Boolean),
     [article.body],
@@ -23,7 +207,6 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
   useEffect(() => {
     setExpanded(false)
     setAvatarError(false)
-    setLoadedImages({})
   }, [article.tweetId])
 
   const publishedAt = useMemo(() => {
@@ -42,6 +225,10 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
   }, [article.publishedAt])
 
   const fallbackLetter = article.authorName.charAt(0).toUpperCase() || 'A'
+
+  const trailingImages = hasRichContent
+    ? []
+    : article.images
 
   return (
     <motion.article
@@ -116,50 +303,64 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
         </motion.section>
       ) : null}
 
+      {article.coverImage ? (
+        <section className="mb-6 overflow-hidden rounded-2xl border border-border-subtle">
+          <img src={article.coverImage} alt="Cover" className="w-full object-cover" />
+        </section>
+      ) : null}
+
       <section className="relative">
-        <motion.div
-          layout
-          className={`relative ${shouldShowToggle && !expanded ? 'max-h-[300px] overflow-hidden' : ''}`}
-        >
-          <div className="text-left font-inter text-[15px] font-normal leading-[1.85] text-[rgba(240,240,255,0.85)]">
-            {paragraphs.map((paragraph, index) => (
-              <p
-                key={`${article.tweetId}-paragraph-${index}`}
-                className={index === paragraphs.length - 1 ? '' : 'mb-[1em]'}
-                style={{ whiteSpace: 'pre-line' }}
-              >
-                {paragraph}
-              </p>
-            ))}
+        {hasRichContent ? (
+          <div className="text-left font-inter">
+            <RichContentRenderer blocks={article.contentBlocks} tweetId={article.tweetId} />
           </div>
+        ) : (
+          <>
+            <motion.div
+              layout
+              className={`relative ${shouldShowToggle && !expanded ? 'max-h-[300px] overflow-hidden' : ''}`}
+            >
+              <div className="text-left font-inter text-[15px] font-normal leading-[1.85] text-[rgba(240,240,255,0.85)]">
+                {paragraphs.map((paragraph, index) => (
+                  <p
+                    key={`${article.tweetId}-paragraph-${index}`}
+                    className={index === paragraphs.length - 1 ? '' : 'mb-[1em]'}
+                    style={{ whiteSpace: 'pre-line' }}
+                  >
+                    {paragraph}
+                  </p>
+                ))}
+              </div>
 
-          {shouldShowToggle && !expanded ? (
-            <div
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-20"
-              style={{
-                background: 'linear-gradient(to bottom, transparent, rgba(13,13,20,0.95))',
-              }}
-            />
-          ) : null}
-        </motion.div>
+              {shouldShowToggle && !expanded ? (
+                <div
+                  className="pointer-events-none absolute inset-x-0 bottom-0 h-20"
+                  style={{
+                    background: 'linear-gradient(to bottom, transparent, rgba(13,13,20,0.95))',
+                  }}
+                />
+              ) : null}
+            </motion.div>
 
-        {shouldShowToggle ? (
-          <motion.button
-            type="button"
-            data-cursor="pointer"
-            onClick={() => setExpanded((value) => !value)}
-            className="mt-3 border-none bg-transparent p-0 font-inter text-[13px] font-medium text-accent-violet hover:underline hover:underline-offset-4"
-            whileHover={{ color: '#9f67ff' }}
-          >
-            {expanded ? 'Collapse ↑' : 'Show full article ↓'}
-          </motion.button>
-        ) : null}
+            {shouldShowToggle ? (
+              <motion.button
+                type="button"
+                data-cursor="pointer"
+                onClick={() => setExpanded((value) => !value)}
+                className="mt-3 border-none bg-transparent p-0 font-inter text-[13px] font-medium text-accent-violet hover:underline hover:underline-offset-4"
+                whileHover={{ color: '#9f67ff' }}
+              >
+                {expanded ? 'Collapse ↑' : 'Show full article ↓'}
+              </motion.button>
+            ) : null}
+          </>
+        )}
       </section>
 
-      {article.images.length > 0 ? (
+      {trailingImages.length > 0 ? (
         <section className="mt-6">
           <div className="flex gap-3 overflow-x-auto overflow-y-hidden pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {article.images.map((image, index) => (
+            {trailingImages.map((image, index) => (
               <motion.button
                 key={`${image}-${index}`}
                 type="button"
@@ -168,29 +369,10 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
                 className="relative h-[220px] max-w-[380px] overflow-hidden rounded-2xl border border-border-subtle p-0"
                 whileHover={{ scale: 1.02, filter: 'brightness(1.05)' }}
               >
-                {!loadedImages[index] ? (
-                  <div
-                    className="absolute inset-0 animate-[shimmer_1.5s_infinite]"
-                    style={{
-                      background:
-                        'linear-gradient(90deg, var(--bg-elevated) 25%, var(--bg-surface) 50%, var(--bg-elevated) 75%)',
-                      backgroundSize: '200% 100%',
-                    }}
-                  />
-                ) : null}
-
                 <img
                   src={image}
                   alt={`Article media ${index + 1}`}
-                  className={`h-full w-full object-cover transition-opacity duration-300 ${
-                    loadedImages[index] ? 'opacity-100' : 'opacity-0'
-                  }`}
-                  onLoad={() =>
-                    setLoadedImages((state) => ({
-                      ...state,
-                      [index]: true,
-                    }))
-                  }
+                  className="h-full w-full object-cover"
                 />
               </motion.button>
             ))}

@@ -51,8 +51,8 @@ export const fetchTweet = async (url: string): Promise<any> => {
 
   const payload = await response.json()
 
-  if (payload?.tweet?.code !== 200) {
-    const message = String(payload?.tweet?.message ?? payload?.message ?? '').toLowerCase()
+  if (payload?.code !== 200) {
+    const message = String(payload?.message ?? '').toLowerCase()
     if (message.includes('private')) {
       throw makeError(FxTwitterErrorCode.PRIVATE_TWEET)
     }
