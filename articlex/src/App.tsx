@@ -1,11 +1,17 @@
 import { motion } from 'framer-motion'
-import { useEffect, useState } from 'react'
+import { AlertCircle } from 'lucide-react'
+import { useState } from 'react'
 import { ArticlePreview } from './components/ArticlePreview'
-import { LocalHistory } from './components/LocalHistory'
 import { UrlInput } from './components/UrlInput'
 import { AuroraBackground } from './components/ui/AuroraBackground'
 import { CustomCursor } from './components/ui/CustomCursor'
-import { loadHistory, pushHistoryEntry } from './lib/history'
+import {
+  FxTwitterErrorCode,
+  type FxTwitterError,
+  fetchTweet,
+} from './lib/fxtwitter'
+import { addToHistory } from './lib/history'
+import { normalizeTweet } from './lib/normalizer'
 import type { ArticleObject } from './types/article'
 
 const headlineRows = [
@@ -45,15 +51,42 @@ const headlineWord = {
 
 function App() {
   const [article, setArticle] = useState<ArticleObject | null>(null)
-  const [history, setHistory] = useState<ArticleObject[]>([])
+  const [isConverting, setIsConverting] = useState(false)
+  const [convertError, setConvertError] = useState<string | null>(null)
 
-  useEffect(() => {
-    setHistory(loadHistory())
-  }, [])
+  const resolveErrorMessage = (error: unknown): string => {
+    const typedError = error as FxTwitterError
 
-  const handleConversionSuccess = (nextArticle: ArticleObject) => {
-    setArticle(nextArticle)
-    setHistory(pushHistoryEntry(nextArticle))
+    switch (typedError?.code) {
+      case FxTwitterErrorCode.INVALID_URL:
+        return 'Please paste a valid X/Twitter URL.'
+      case FxTwitterErrorCode.NOT_FOUND:
+        return 'Tweet not found. It may have been deleted.'
+      case FxTwitterErrorCode.PRIVATE_TWEET:
+        return 'This tweet is private and cannot be accessed.'
+      case FxTwitterErrorCode.API_ERROR:
+        return `FixTweet API error${typedError.status ? ` (${typedError.status})` : ''}. Try again in a moment.`
+      case FxTwitterErrorCode.TWEET_ERROR:
+        return 'The API returned an invalid tweet payload.'
+      default:
+        return 'Something went wrong while converting this URL.'
+    }
+  }
+
+  const handleConvert = async (url: string) => {
+    setConvertError(null)
+    setIsConverting(true)
+
+    try {
+      const apiResponse = await fetchTweet(url)
+      const normalized = normalizeTweet(apiResponse)
+      setArticle(normalized)
+      addToHistory(normalized, [])
+    } catch (error) {
+      setConvertError(resolveErrorMessage(error))
+    } finally {
+      setIsConverting(false)
+    }
   }
 
   return (
@@ -123,16 +156,24 @@ function App() {
         </section>
 
         <section className="mx-auto w-full max-w-4xl">
-          <UrlInput onSuccess={handleConversionSuccess} />
+          <UrlInput onConvert={handleConvert} isLoading={isConverting} />
+          {convertError ? (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-4 inline-flex items-center gap-2 rounded-full border border-red-500/25 bg-red-500/10 px-3 py-1.5 text-sm text-red-300"
+            >
+              <AlertCircle className="h-4 w-4" />
+              <span>{convertError}</span>
+            </motion.div>
+          ) : null}
         </section>
 
-        <section className="mx-auto w-full max-w-4xl">
-          <ArticlePreview article={article} />
-        </section>
-
-        <section className="mx-auto w-full max-w-4xl pb-6">
-          <LocalHistory entries={history} onSelect={setArticle} />
-        </section>
+        {article ? (
+          <section className="mx-auto w-full max-w-4xl">
+            <ArticlePreview article={article} />
+          </section>
+        ) : null}
       </main>
     </div>
   )

@@ -1,11 +1,9 @@
-import { motion, AnimatePresence } from 'framer-motion'
-import { AlertCircle } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { useState } from 'react'
-import { buildPreviewArticleFromUrl, parseXArticleUrl } from '../lib/fxtwitter'
-import type { ArticleObject } from '../types/article'
 
 interface UrlInputProps {
-  onSuccess: (article: ArticleObject) => void
+  onConvert: (url: string) => Promise<void>
+  isLoading?: boolean
 }
 
 const sampleUrls = [
@@ -23,37 +21,21 @@ const sampleUrls = [
   },
 ]
 
-export const UrlInput = ({ onSuccess }: UrlInputProps) => {
+export const UrlInput = ({ onConvert, isLoading = false }: UrlInputProps) => {
   const [url, setUrl] = useState('')
   const [isFocused, setIsFocused] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async () => {
     if (isLoading) {
       return
     }
 
-    const parsed = parseXArticleUrl(url)
-    if (!parsed) {
-      setError('Please paste a valid X/Twitter status URL.')
+    const trimmedUrl = url.trim()
+    if (!trimmedUrl) {
       return
     }
 
-    setError(null)
-    setIsLoading(true)
-
-    await new Promise((resolve) => window.setTimeout(resolve, 950))
-    const article = buildPreviewArticleFromUrl(parsed.canonicalUrl)
-
-    if (!article) {
-      setError('Could not convert this URL yet. Try another one.')
-      setIsLoading(false)
-      return
-    }
-
-    onSuccess(article)
-    setIsLoading(false)
+    await onConvert(trimmedUrl)
   }
 
   return (
@@ -79,6 +61,11 @@ export const UrlInput = ({ onSuccess }: UrlInputProps) => {
           onChange={(event) => setUrl(event.target.value)}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              void handleSubmit()
+            }
+          }}
           placeholder="Paste an X article URL..."
           className="w-full flex-1 bg-transparent px-4 py-3 font-mono text-sm text-text-primary outline-none placeholder:font-inter placeholder:text-text-muted"
         />
@@ -129,7 +116,6 @@ export const UrlInput = ({ onSuccess }: UrlInputProps) => {
             type="button"
             onClick={() => {
               setUrl(sample.value)
-              setError(null)
             }}
             className="cursor-pointer rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 font-mono text-[11px] text-text-muted transition-colors hover:bg-white/[0.08]"
             whileHover={{ scale: 1.03 }}
@@ -138,21 +124,6 @@ export const UrlInput = ({ onSuccess }: UrlInputProps) => {
           </motion.button>
         ))}
       </div>
-
-      <AnimatePresence>
-        {error ? (
-          <motion.div
-            key="url-input-error"
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            className="inline-flex items-center gap-2 rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1.5 text-xs text-red-300"
-          >
-            <AlertCircle className="h-3.5 w-3.5" />
-            <span>{error}</span>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
     </div>
   )
 }
