@@ -36,8 +36,8 @@ export const readingFontStyle: Record<ReadingConfig['fontFamily'], string> = {
   literata: "'Literata', Georgia, serif",
 }
 
-export const readingWidthClass: Record<ReadingConfig['maxWidth'], string> = {
-  narrow: 'max-w-xl mx-auto',
-  normal: '',
-  wide: 'max-w-4xl',
+export const cardMaxWidth: Record<ReadingConfig['maxWidth'], string> = {
+  narrow: '580px',
+  normal: '768px',
+  wide: '960px',
 }

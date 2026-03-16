@@ -19,7 +19,7 @@ import { generateHTML } from '../lib/generators/html'
 import { generateMarkdown } from '../lib/generators/markdown'
 import { generatePDF } from '../lib/generators/pdf'
 import { ReadingSettingsButton } from './ui/ReadingSettings'
-import { getReadingConfig, readingFontStyle, readingWidthClass, type ReadingConfig } from '../lib/reading-config'
+import { cardMaxWidth, getReadingConfig, readingFontStyle, type ReadingConfig } from '../lib/reading-config'
 import { generatePNG } from '../lib/generators/png'
 import type { ArticleObject, ContentBlock, InlineAnnotation } from '../types/article'
 
@@ -178,11 +178,11 @@ function RichContentRenderer({
             case 'heading': {
               const isH1 = block.level === 1
               return isH1 ? (
-                <h2 key={`${tweetId}-h1-${index}`} className="mt-10 mb-4 border-b border-border-subtle pb-3 font-jakarta text-[24px] font-extrabold leading-[1.3] tracking-[-0.01em] text-text-primary">
+                <h2 key={`${tweetId}-h1-${index}`} className="mt-10 mb-4 border-b border-border-subtle pb-3 text-[1.6em] font-extrabold leading-[1.3] tracking-[-0.01em] text-text-primary">
                   {renderAnnotatedText(block.text, block.annotations)}
                 </h2>
               ) : (
-                <h3 key={`${tweetId}-h2-${index}`} className="mt-8 mb-3 font-jakarta text-[20px] font-bold leading-[1.3] tracking-[-0.01em] text-text-primary">
+                <h3 key={`${tweetId}-h2-${index}`} className="mt-8 mb-3 text-[1.35em] font-bold leading-[1.3] tracking-[-0.01em] text-text-primary">
                   {renderAnnotatedText(block.text, block.annotations)}
                 </h3>
               )
@@ -387,6 +387,11 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
     <>
       <ImageLightbox src={lightboxSrc} onClose={closeLightbox} />
 
+      <motion.div
+        style={{ maxWidth: cardMaxWidth[readingConfig.maxWidth], margin: '0 auto', width: '100%' }}
+        layout
+        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+      >
       <motion.article
         ref={articleRef}
         key={article.tweetId}
@@ -465,13 +470,13 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
 
         <section className="relative">
           {hasRichContent ? (
-            <div className={`text-left ${readingWidthClass[readingConfig.maxWidth]}`} style={{ fontFamily: readingFontStyle[readingConfig.fontFamily], fontSize: `${readingConfig.fontSize}px`, lineHeight: readingConfig.lineHeight }}>
+            <div className="text-left" style={{ fontFamily: readingFontStyle[readingConfig.fontFamily], fontSize: `${readingConfig.fontSize}px`, lineHeight: readingConfig.lineHeight }}>
               <RichContentRenderer blocks={article.contentBlocks} tweetId={article.tweetId} onImageOpen={openLightbox} />
             </div>
           ) : (
             <>
               <motion.div layout className={`relative ${shouldShowToggle && !expanded ? 'max-h-[300px] overflow-hidden' : ''}`}>
-                <div className={`text-left font-normal ${readingWidthClass[readingConfig.maxWidth]}`} style={{ color: 'var(--body-text)', fontFamily: readingFontStyle[readingConfig.fontFamily], fontSize: `${readingConfig.fontSize}px`, lineHeight: readingConfig.lineHeight }}>
+                <div className="text-left font-normal" style={{ color: 'var(--body-text)', fontFamily: readingFontStyle[readingConfig.fontFamily], fontSize: `${readingConfig.fontSize}px`, lineHeight: readingConfig.lineHeight }}>
                   {paragraphs.map((paragraph, index) => (
                     <p key={`${article.tweetId}-paragraph-${index}`} className={index === paragraphs.length - 1 ? '' : 'mb-[1em]'} style={{ whiteSpace: 'pre-line' }}>
                       {paragraph}
@@ -537,6 +542,7 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
           <ExportButtons article={article} articleRef={articleRef} onExport={onExport} />
         </section>
       </motion.article>
+      </motion.div>
     </>
   )
 }

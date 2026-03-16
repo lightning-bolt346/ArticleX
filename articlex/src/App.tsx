@@ -101,7 +101,7 @@ function App() {
       <CustomCursor />
       <ThemeToggle theme={theme} onToggle={toggleTheme} />
 
-      <main className="relative z-10 mx-auto w-full max-w-3xl px-4">
+      <main className="relative z-10 mx-auto w-full max-w-4xl px-4">
         <section className="pt-20 pb-10 text-center">
           <motion.div
             initial={{ opacity: 0 }}
@@ -155,7 +155,7 @@ function App() {
             <motion.div
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mt-4 inline-flex items-center gap-2 rounded-full border border-red-500/25 bg-red-500/10 px-3 py-1.5 text-sm text-red-300"
+              className="mt-4 inline-flex items-center gap-2 rounded-full border border-red-500/25 bg-red-500/10 px-3 py-1.5 text-sm text-red-400"
             >
               <AlertCircle className="h-4 w-4" />
               <span>{error}</span>
