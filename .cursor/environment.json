@@ -1,0 +1,4 @@
+{
+  "install": "cd articlex && npm ci",
+  "update": "cd articlex && npm ci"
+}
