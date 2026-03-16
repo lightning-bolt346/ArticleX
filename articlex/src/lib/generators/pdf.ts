@@ -34,6 +34,7 @@ function annotatedText(block: ContentBlock): Content {
     if (ann.offset > lastIdx) parts.push(block.text.slice(lastIdx, ann.offset))
     const slice = block.text.slice(ann.offset, ann.offset + ann.length)
     if (ann.type === 'bold') parts.push({ text: slice, bold: true })
+    else if (ann.type === 'italic') parts.push({ text: slice, italics: true })
     else if (ann.type === 'link' && ann.url) parts.push({ text: slice, color: '#0563C1', decoration: 'underline' as const, link: ann.url })
     else parts.push(slice)
     lastIdx = ann.offset + ann.length
@@ -87,11 +88,10 @@ async function blocksToContent(blocks: ContentBlock[]): Promise<Content[]> {
       case 'code-block':
         content.push({
           text: block.text,
-          font: 'Courier',
           fontSize: 8,
           background: '#f3f4f6',
           color: '#374151',
-          margin: [0, 6, 0, 6] as [number, number, number, number],
+          margin: [8, 6, 8, 6] as [number, number, number, number],
           preserveLeadingSpaces: true,
         })
         break
@@ -165,7 +165,10 @@ export const generatePDF = async (article: ArticleObject): Promise<void> => {
   const docDefinition: TDocumentDefinitions = {
     content: [
       ...(article.title
-        ? [{ text: article.title, style: 'title' } as Content]
+        ? [{
+            text: article.title,
+            style: 'title',
+          } as Content]
         : []),
       {
         text: [
@@ -206,7 +209,12 @@ export const generatePDF = async (article: ArticleObject): Promise<void> => {
       }
     },
     styles: {
-      title: { fontSize: 20, bold: true, color: '#7c3aed', margin: [0, 0, 0, 8] },
+      title: {
+        fontSize: 20,
+        bold: true,
+        decoration: 'underline' as const,
+        margin: [0, 0, 0, 8],
+      },
       h1: { fontSize: 16, bold: true, color: '#1f2937' },
       h2: { fontSize: 14, bold: true, color: '#1f2937' },
     },
