@@ -1,4 +1,4 @@
-import type { ArticleObject } from '../../types/article'
+import type { ArticleObject, ContentBlock, InlineAnnotation } from '../../types/article'
 
 const escapeHtml = (value: string): string =>
   value
@@ -23,23 +23,104 @@ const triggerDownload = (filename: string, content: string) => {
   URL.revokeObjectURL(objectUrl)
 }
 
+function renderAnnotatedHtml(text: string, annotations: InlineAnnotation[]): string {
+  if (annotations.length === 0) return escapeHtml(text)
+
+  const boundaries = new Set<number>([0, text.length])
+  for (const ann of annotations) {
+    boundaries.add(ann.offset)
+    boundaries.add(Math.min(ann.offset + ann.length, text.length))
+  }
+
+  const sorted = Array.from(boundaries).sort((a, b) => a - b)
+  let html = ''
+
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const start = sorted[i]
+    const end = sorted[i + 1]
+    const slice = text.slice(start, end)
+    if (!slice) continue
+
+    let escaped = escapeHtml(slice)
+    let bold = false
+    let link: string | undefined
+
+    for (const ann of annotations) {
+      if (ann.offset <= start && start < ann.offset + ann.length) {
+        if (ann.type === 'bold') bold = true
+        if (ann.type === 'link') link = ann.url
+      }
+    }
+
+    if (bold) escaped = `<strong>${escaped}</strong>`
+    if (link) escaped = `<a href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer">${escaped}</a>`
+    html += escaped
+  }
+
+  return html
+}
+
+function renderBlocksHtml(blocks: ContentBlock[]): string {
+  const parts: string[] = []
+  let listOpen = false
+
+  for (const block of blocks) {
+    if (block.type !== 'list-item' && listOpen) {
+      parts.push('</ul>')
+      listOpen = false
+    }
+
+    switch (block.type) {
+      case 'heading':
+        parts.push(`<h2>${renderAnnotatedHtml(block.text, block.annotations)}</h2>`)
+        break
+      case 'blockquote':
+        parts.push(`<blockquote>${renderAnnotatedHtml(block.text, block.annotations)}</blockquote>`)
+        break
+      case 'list-item':
+        if (!listOpen) {
+          parts.push('<ul>')
+          listOpen = true
+        }
+        parts.push(`<li>${renderAnnotatedHtml(block.text, block.annotations)}</li>`)
+        break
+      case 'image':
+        if (block.imageUrl) {
+          parts.push(`<figure><img src="${escapeHtml(block.imageUrl)}" alt="Article media" loading="lazy" /></figure>`)
+        }
+        break
+      default:
+        parts.push(`<p>${renderAnnotatedHtml(block.text, block.annotations)}</p>`)
+        break
+    }
+  }
+
+  if (listOpen) parts.push('</ul>')
+  return parts.join('\n    ')
+}
+
 export const generateHTML = (article: ArticleObject): void => {
   const handle = cleanHandle(article.authorHandle)
   const title = article.title ?? `@${handle} on X`
   const published = new Date(article.publishedAt).toLocaleString()
   const exportDate = new Date().toLocaleDateString()
-  const paragraphs = article.body
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => `<p>${escapeHtml(line)}</p>`)
-    .join('\n')
 
+  const hasRichContent = article.contentBlocks.length > 0
+  const bodyContent = hasRichContent
+    ? renderBlocksHtml(article.contentBlocks)
+    : article.body
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => `<p>${escapeHtml(line)}</p>`)
+        .join('\n')
+
+  const trailingImages = hasRichContent ? [] : article.images
   const imagesBlock =
-    article.images.length > 0
+    trailingImages.length > 0
       ? `
   <section class="images-grid">
-    ${article.images
+    ${trailingImages
       .map(
         (image, index) =>
           `<img src="${escapeHtml(image)}" alt="Image ${index + 1}" loading="lazy" />`,
@@ -47,6 +128,10 @@ export const generateHTML = (article: ArticleObject): void => {
       .join('\n    ')}
   </section>`
       : ''
+
+  const coverBlock = article.coverImage
+    ? `<figure class="cover-image"><img src="${escapeHtml(article.coverImage)}" alt="Cover" loading="lazy" /></figure>`
+    : ''
 
   const titleBlock = article.title
     ? `<div class="title">${escapeHtml(article.title)}</div>`
@@ -112,11 +197,51 @@ export const generateHTML = (article: ArticleObject): void => {
       border-left: 3px solid #7c3aed;
       padding-left: 20px;
     }
+    .cover-image { margin: 0 0 32px; }
+    .cover-image img { width: 100%; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); }
     .body-text p {
       margin: 0 0 1.5em;
       font-size: 16px;
       color: rgba(240,240,255,0.85);
       line-height: 1.85;
+    }
+    .body-text h2 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #f0f0ff;
+      margin: 2em 0 0.6em;
+    }
+    .body-text ul {
+      margin: 1em 0;
+      padding-left: 1.5em;
+    }
+    .body-text li {
+      margin-bottom: 0.5em;
+      color: rgba(240,240,255,0.85);
+      line-height: 1.85;
+    }
+    .body-text blockquote {
+      border-left: 3px solid #7c3aed;
+      padding-left: 20px;
+      margin: 1.5em 0;
+      font-style: italic;
+      color: rgba(240,240,255,0.65);
+    }
+    .body-text figure {
+      margin: 1.5em 0;
+    }
+    .body-text figure img {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .body-text a {
+      color: #06b6d4;
+      text-decoration: underline;
+    }
+    .body-text strong {
+      color: #f0f0ff;
+      font-weight: 600;
     }
     .images-grid {
       display: grid;
@@ -166,9 +291,10 @@ export const generateHTML = (article: ArticleObject): void => {
   </header>
 
   ${titleBlock}
+  ${coverBlock}
 
   <main class="body-text">
-    ${paragraphs}
+    ${bodyContent}
   </main>
 
   ${imagesBlock}
