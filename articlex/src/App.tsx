@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { AlertCircle, Github, Heart, Zap } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArticlePreview } from './components/ArticlePreview'
+import { TipButton } from './components/TipButton'
 import { LocalHistory } from './components/LocalHistory'
 import { UrlInput } from './components/UrlInput'
 import { AuroraBackground } from './components/ui/AuroraBackground'
@@ -232,6 +233,8 @@ function App() {
           </div>
         </div>
       </footer>
+
+      <TipButton />
     </div>
   )
 }
