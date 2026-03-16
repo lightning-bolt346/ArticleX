@@ -101,7 +101,7 @@ function App() {
       <CustomCursor />
       <ThemeToggle theme={theme} onToggle={toggleTheme} />
 
-      <main className="relative z-10 mx-auto w-full max-w-3xl px-4">
+      <main className="relative z-10 mx-auto w-full max-w-4xl px-4">
         <section className="pt-20 pb-10 text-center">
           <motion.div
             initial={{ opacity: 0 }}
