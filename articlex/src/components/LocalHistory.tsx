@@ -102,9 +102,9 @@ export const LocalHistory = ({ onSelect }: LocalHistoryProps) => {
                 exit={{ y: -10, opacity: 0 }}
                 transition={{ duration: 0.25, delay: index * 0.05 }}
                 onClick={() => onSelect(entry.url)}
-                className="flex w-full items-start justify-between rounded-[14px] border px-[18px] py-[14px] text-left transition-colors"
-                style={{ background: 'var(--history-bg)', borderColor: 'var(--history-border)' }}
-                whileHover={{ backgroundColor: 'var(--history-hover)' }}
+                className="flex w-full items-start justify-between rounded-[14px] border px-[18px] py-[14px] text-left transition-all"
+                style={{ background: 'var(--history-bg)', borderColor: 'var(--history-border)', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}
+                whileHover={{ scale: 1.005, backgroundColor: 'var(--history-hover)' }}
               >
                 <div className="min-w-0">
                   <p className="font-mono text-xs text-accent-cyan">
@@ -121,9 +121,10 @@ export const LocalHistory = ({ onSelect }: LocalHistoryProps) => {
                     {entry.formats.map((format) => (
                       <span
                         key={`${entry.tweetId}-${format}`}
-                        className={`rounded-full border bg-white/5 px-2 py-0.5 font-mono text-[10px] ${badgeClassByFormat(
+                        className={`rounded-full border px-2 py-0.5 font-mono text-[10px] ${badgeClassByFormat(
                           format,
                         )}`}
+                        style={{ background: 'var(--badge-bg)' }}
                       >
                         {formatLabel(format)}
                       </span>
