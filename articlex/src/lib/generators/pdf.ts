@@ -42,7 +42,16 @@ function annotatedText(block: ContentBlock): Content {
   return parts
 }
 
-function blocksToContent(blocks: ContentBlock[]): Content[] {
+const imageCache = new Map<string, string | null>()
+
+async function getImageDataUrl(url: string): Promise<string | null> {
+  if (imageCache.has(url)) return imageCache.get(url) ?? null
+  const result = await fetchImageDataUrl(url)
+  imageCache.set(url, result)
+  return result
+}
+
+async function blocksToContent(blocks: ContentBlock[]): Promise<Content[]> {
   const content: Content[] = []
   let listItems: Content[] = []
 
@@ -87,6 +96,17 @@ function blocksToContent(blocks: ContentBlock[]): Content[] {
         })
         break
       case 'image':
+        if (block.imageUrl) {
+          const dataUrl = await getImageDataUrl(block.imageUrl)
+          if (dataUrl) {
+            content.push({
+              image: dataUrl,
+              width: 420,
+              alignment: 'center' as const,
+              margin: [0, 8, 0, 8] as [number, number, number, number],
+            })
+          }
+        }
         break
       default:
         content.push({ text: annotatedText(block), margin: [0, 0, 0, 8] as [number, number, number, number] })
@@ -99,38 +119,37 @@ function blocksToContent(blocks: ContentBlock[]): Content[] {
 }
 
 export const generatePDF = async (article: ArticleObject): Promise<void> => {
+  imageCache.clear()
   const handle = cleanHandle(article.authorHandle)
   const publishedDate = new Date(article.publishedAt).toLocaleString()
   const hasRichContent = article.contentBlocks.length > 0
 
   const bodyContent: Content[] = hasRichContent
-    ? blocksToContent(article.contentBlocks)
+    ? await blocksToContent(article.contentBlocks)
     : article.body
         .split('\n')
         .map((line) => line.trim())
         .filter(Boolean)
         .map((line) => ({ text: line, margin: [0, 0, 0, 8] as [number, number, number, number] }))
 
-  const imageContent: Content[] = []
-  const allImages = hasRichContent
-    ? article.contentBlocks.filter((b) => b.type === 'image' && b.imageUrl).map((b) => b.imageUrl!)
-    : article.images
-
-  for (const url of allImages) {
-    const dataUrl = await fetchImageDataUrl(url)
-    if (dataUrl) {
-      imageContent.push({
-        image: dataUrl,
-        width: 420,
-        alignment: 'center' as const,
-        margin: [0, 8, 0, 8] as [number, number, number, number],
-      })
+  const trailingImageContent: Content[] = []
+  if (!hasRichContent) {
+    for (const url of article.images) {
+      const dataUrl = await getImageDataUrl(url)
+      if (dataUrl) {
+        trailingImageContent.push({
+          image: dataUrl,
+          width: 420,
+          alignment: 'center' as const,
+          margin: [0, 8, 0, 8] as [number, number, number, number],
+        })
+      }
     }
   }
 
   let coverContent: Content[] = []
   if (article.coverImage) {
-    const coverDataUrl = await fetchImageDataUrl(article.coverImage)
+    const coverDataUrl = await getImageDataUrl(article.coverImage)
     if (coverDataUrl) {
       coverContent = [{
         image: coverDataUrl,
@@ -140,6 +159,8 @@ export const generatePDF = async (article: ArticleObject): Promise<void> => {
       }]
     }
   }
+
+  const branding = `ArticleX · Free & Open · ${new Date().toLocaleDateString()}`
 
   const docDefinition: TDocumentDefinitions = {
     content: [
@@ -163,33 +184,33 @@ export const generatePDF = async (article: ArticleObject): Promise<void> => {
       },
       ...coverContent,
       ...bodyContent,
-      ...imageContent,
-      {
-        canvas: [{ type: 'line' as const, x1: 0, y1: 0, x2: 475, y2: 0, lineWidth: 0.5, lineColor: '#dddddd' }],
-        margin: [0, 16, 0, 6] as [number, number, number, number],
-      },
-      {
-        text: `Exported from ArticleX · articlex.app · ${new Date().toLocaleDateString()}`,
-        fontSize: 7,
-        color: '#999999',
-        italics: true,
-        alignment: 'center' as const,
-      },
+      ...trailingImageContent,
     ],
+    footer: (currentPage: number) => {
+      if (currentPage % 2 === 0) {
+        return {
+          text: branding,
+          fontSize: 7,
+          color: '#999999',
+          italics: true,
+          alignment: 'center' as const,
+          margin: [0, 10, 0, 0] as [number, number, number, number],
+        }
+      }
+      return {
+        text: `Page ${currentPage}`,
+        fontSize: 7,
+        color: '#bbbbbb',
+        alignment: 'center' as const,
+        margin: [0, 10, 0, 0] as [number, number, number, number],
+      }
+    },
     styles: {
-      title: {
-        fontSize: 20,
-        bold: true,
-        color: '#7c3aed',
-        margin: [0, 0, 0, 8],
-      },
+      title: { fontSize: 20, bold: true, color: '#7c3aed', margin: [0, 0, 0, 8] },
       h1: { fontSize: 16, bold: true, color: '#1f2937' },
       h2: { fontSize: 14, bold: true, color: '#1f2937' },
     },
-    defaultStyle: {
-      fontSize: 10,
-      lineHeight: 1.5,
-    },
+    defaultStyle: { fontSize: 10, lineHeight: 1.5 },
     pageMargins: [50, 40, 50, 40],
   }
 

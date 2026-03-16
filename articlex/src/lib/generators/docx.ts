@@ -3,9 +3,11 @@ import {
   BorderStyle,
   Document,
   ExternalHyperlink,
+  Footer,
   HeadingLevel,
   ImageRun,
   Packer,
+  PageNumber,
   Paragraph,
   ShadingType,
   TextRun,
@@ -281,6 +283,33 @@ export const generateDOCX = async (article: ArticleObject): Promise<void> => {
       {
         properties: {
           page: { margin: { top: 1440, bottom: 1440, left: 1440, right: 1440 } },
+          titlePage: true,
+        },
+        footers: {
+          default: new Footer({
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({ text: 'Exported from ', size: 14, color: '999999', font: 'Calibri', italics: true }),
+                  new TextRun({ text: 'ArticleX', size: 14, color: '7C3AED', font: 'Calibri', bold: true }),
+                  new TextRun({ text: ' · Free & Open · Page ', size: 14, color: '999999', font: 'Calibri', italics: true }),
+                  new TextRun({ children: [PageNumber.CURRENT], size: 14, color: '999999', font: 'Calibri' }),
+                ],
+              }),
+            ],
+          }),
+          first: new Footer({
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({ text: 'Page ', size: 14, color: 'BBBBBB', font: 'Calibri' }),
+                  new TextRun({ children: [PageNumber.CURRENT], size: 14, color: 'BBBBBB', font: 'Calibri' }),
+                ],
+              }),
+            ],
+          }),
         },
         children: [
           ...(article.title
