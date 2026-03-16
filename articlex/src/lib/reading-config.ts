@@ -1,7 +1,7 @@
 export interface ReadingConfig {
   fontSize: number
   lineHeight: number
-  fontFamily: 'inter' | 'serif' | 'mono'
+  fontFamily: 'inter' | 'georgia' | 'mono' | 'system' | 'literata'
   maxWidth: 'narrow' | 'normal' | 'wide'
 }
 
@@ -28,14 +28,16 @@ export function saveReadingConfig(config: ReadingConfig) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(config))
 }
 
-export const readingFontClass: Record<ReadingConfig['fontFamily'], string> = {
-  inter: 'font-inter',
-  serif: 'font-serif',
-  mono: 'font-mono',
+export const readingFontStyle: Record<ReadingConfig['fontFamily'], string> = {
+  inter: "'Inter', sans-serif",
+  georgia: "Georgia, 'Times New Roman', serif",
+  mono: "'JetBrains Mono', monospace",
+  system: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+  literata: "'Literata', Georgia, serif",
 }
 
 export const readingWidthClass: Record<ReadingConfig['maxWidth'], string> = {
-  narrow: 'max-w-lg',
+  narrow: 'max-w-xl mx-auto',
   normal: '',
-  wide: 'max-w-none',
+  wide: 'max-w-4xl',
 }

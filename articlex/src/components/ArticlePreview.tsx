@@ -19,7 +19,7 @@ import { generateHTML } from '../lib/generators/html'
 import { generateMarkdown } from '../lib/generators/markdown'
 import { generatePDF } from '../lib/generators/pdf'
 import { ReadingSettingsButton } from './ui/ReadingSettings'
-import { getReadingConfig, readingFontClass, readingWidthClass, type ReadingConfig } from '../lib/reading-config'
+import { getReadingConfig, readingFontStyle, readingWidthClass, type ReadingConfig } from '../lib/reading-config'
 import { generatePNG } from '../lib/generators/png'
 import type { ArticleObject, ContentBlock, InlineAnnotation } from '../types/article'
 
@@ -451,7 +451,7 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
             className="mb-5 border-l-[3px] pl-5"
             style={{ borderImage: 'linear-gradient(to bottom, #7c3aed, #06b6d4) 1' }}
           >
-            <h2 className="font-jakarta text-[28px] font-extrabold leading-[1.25] tracking-[-0.02em] text-text-primary">
+            <h2 className="text-[28px] font-extrabold leading-[1.25] tracking-[-0.02em] text-text-primary" style={{ fontFamily: readingFontStyle[readingConfig.fontFamily] }}>
               {article.title}
             </h2>
           </motion.section>
@@ -465,13 +465,13 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
 
         <section className="relative">
           {hasRichContent ? (
-            <div className={`text-left ${readingFontClass[readingConfig.fontFamily]} ${readingWidthClass[readingConfig.maxWidth]}`} style={{ fontSize: `${readingConfig.fontSize}px`, lineHeight: readingConfig.lineHeight }}>
+            <div className={`text-left ${readingWidthClass[readingConfig.maxWidth]}`} style={{ fontFamily: readingFontStyle[readingConfig.fontFamily], fontSize: `${readingConfig.fontSize}px`, lineHeight: readingConfig.lineHeight }}>
               <RichContentRenderer blocks={article.contentBlocks} tweetId={article.tweetId} onImageOpen={openLightbox} />
             </div>
           ) : (
             <>
               <motion.div layout className={`relative ${shouldShowToggle && !expanded ? 'max-h-[300px] overflow-hidden' : ''}`}>
-                <div className={`text-left ${readingFontClass[readingConfig.fontFamily]} font-normal ${readingWidthClass[readingConfig.maxWidth]}`} style={{ color: 'var(--body-text)', fontSize: `${readingConfig.fontSize}px`, lineHeight: readingConfig.lineHeight }}>
+                <div className={`text-left font-normal ${readingWidthClass[readingConfig.maxWidth]}`} style={{ color: 'var(--body-text)', fontFamily: readingFontStyle[readingConfig.fontFamily], fontSize: `${readingConfig.fontSize}px`, lineHeight: readingConfig.lineHeight }}>
                   {paragraphs.map((paragraph, index) => (
                     <p key={`${article.tweetId}-paragraph-${index}`} className={index === paragraphs.length - 1 ? '' : 'mb-[1em]'} style={{ whiteSpace: 'pre-line' }}>
                       {paragraph}
