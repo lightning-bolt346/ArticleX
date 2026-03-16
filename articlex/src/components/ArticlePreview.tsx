@@ -1,14 +1,15 @@
 import { motion } from 'framer-motion'
 import { Clock3, FileText, ImageIcon } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { ExportButtons } from './ExportButtons'
 import type { ArticleObject } from '../types/article'
 
 interface ArticlePreviewProps {
   article: ArticleObject
+  onExport: (format: 'html' | 'md' | 'docx') => void
 }
 
-export const ArticlePreview = ({ article }: ArticlePreviewProps) => {
-  const cardRef = useRef<HTMLElement | null>(null)
+export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
   const [expanded, setExpanded] = useState(false)
   const [avatarError, setAvatarError] = useState(false)
   const [loadedImages, setLoadedImages] = useState<Record<number, boolean>>({})
@@ -23,7 +24,6 @@ export const ArticlePreview = ({ article }: ArticlePreviewProps) => {
     setExpanded(false)
     setAvatarError(false)
     setLoadedImages({})
-    cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [article.tweetId])
 
   const publishedAt = useMemo(() => {
@@ -45,7 +45,6 @@ export const ArticlePreview = ({ article }: ArticlePreviewProps) => {
 
   return (
     <motion.article
-      ref={cardRef}
       key={article.tweetId}
       initial={{ opacity: 0, y: 60, scale: 0.97 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -87,6 +86,7 @@ export const ArticlePreview = ({ article }: ArticlePreviewProps) => {
 
         <motion.button
           type="button"
+          data-cursor="pointer"
           onClick={() => window.open(article.url, '_blank', 'noopener,noreferrer')}
           className="inline-flex w-fit items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.05] px-3 py-1.5 font-mono text-[11px] text-text-muted"
           whileHover={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
@@ -146,6 +146,7 @@ export const ArticlePreview = ({ article }: ArticlePreviewProps) => {
         {shouldShowToggle ? (
           <motion.button
             type="button"
+            data-cursor="pointer"
             onClick={() => setExpanded((value) => !value)}
             className="mt-3 border-none bg-transparent p-0 font-inter text-[13px] font-medium text-accent-violet hover:underline hover:underline-offset-4"
             whileHover={{ color: '#9f67ff' }}
@@ -162,6 +163,7 @@ export const ArticlePreview = ({ article }: ArticlePreviewProps) => {
               <motion.button
                 key={`${image}-${index}`}
                 type="button"
+                data-cursor="pointer"
                 onClick={() => window.open(image, '_blank', 'noopener,noreferrer')}
                 className="relative h-[220px] max-w-[380px] overflow-hidden rounded-2xl border border-border-subtle p-0"
                 whileHover={{ scale: 1.02, filter: 'brightness(1.05)' }}
@@ -214,7 +216,7 @@ export const ArticlePreview = ({ article }: ArticlePreviewProps) => {
           ) : null}
         </div>
 
-        <div className="text-sm text-text-muted">Export buttons here</div>
+        <ExportButtons article={article} onExport={onExport} />
       </section>
     </motion.article>
   )

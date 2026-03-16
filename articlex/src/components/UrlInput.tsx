@@ -1,9 +1,10 @@
 import { motion } from 'framer-motion'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 interface UrlInputProps {
-  onConvert: (url: string) => Promise<void>
+  onSuccess: (url: string) => void | Promise<void>
   isLoading?: boolean
+  prefillUrl?: string
 }
 
 const sampleUrls = [
@@ -21,9 +22,19 @@ const sampleUrls = [
   },
 ]
 
-export const UrlInput = ({ onConvert, isLoading = false }: UrlInputProps) => {
+export const UrlInput = ({
+  onSuccess,
+  isLoading = false,
+  prefillUrl,
+}: UrlInputProps) => {
   const [url, setUrl] = useState('')
   const [isFocused, setIsFocused] = useState(false)
+
+  useEffect(() => {
+    if (prefillUrl) {
+      setUrl(prefillUrl)
+    }
+  }, [prefillUrl])
 
   const handleSubmit = async () => {
     if (isLoading) {
@@ -35,7 +46,7 @@ export const UrlInput = ({ onConvert, isLoading = false }: UrlInputProps) => {
       return
     }
 
-    await onConvert(trimmedUrl)
+    await onSuccess(trimmedUrl)
   }
 
   return (
@@ -72,6 +83,7 @@ export const UrlInput = ({ onConvert, isLoading = false }: UrlInputProps) => {
 
         <motion.button
           type="button"
+          data-cursor="pointer"
           onClick={handleSubmit}
           disabled={isLoading}
           className="inline-flex min-w-[140px] items-center justify-center rounded-[14px] px-7 py-3 font-inter text-[15px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-75"
@@ -114,6 +126,7 @@ export const UrlInput = ({ onConvert, isLoading = false }: UrlInputProps) => {
           <motion.button
             key={sample.label}
             type="button"
+            data-cursor="pointer"
             onClick={() => {
               setUrl(sample.value)
             }}

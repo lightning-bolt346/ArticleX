@@ -2,6 +2,7 @@ import type { ArticleObject } from '../types/article'
 
 const HISTORY_KEY = 'articlex-history-v1'
 const HISTORY_LIMIT = 20
+export const HISTORY_UPDATED_EVENT = 'articlex-history-updated'
 
 export interface HistoryEntry {
   tweetId: string
@@ -52,6 +53,7 @@ const writeHistory = (entries: HistoryEntry[]): void => {
   }
 
   window.localStorage.setItem(HISTORY_KEY, JSON.stringify(entries))
+  window.dispatchEvent(new Event(HISTORY_UPDATED_EVENT))
 }
 
 export const getHistory = (): HistoryEntry[] => readHistory()
@@ -79,6 +81,7 @@ export const clearHistory = (): void => {
   }
 
   window.localStorage.removeItem(HISTORY_KEY)
+  window.dispatchEvent(new Event(HISTORY_UPDATED_EVENT))
 }
 
 export const updateFormats = (tweetId: string, format: string): void => {
