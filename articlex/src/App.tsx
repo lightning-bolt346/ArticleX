@@ -28,7 +28,7 @@ const headlineContainer = {
       staggerChildren: 0.07,
     },
   },
-}
+} as const
 
 const headlineWord = {
   hidden: { opacity: 0, y: 30 },
@@ -41,7 +41,7 @@ const headlineWord = {
       damping: 14,
     },
   },
-}
+} as const
 
 function App() {
   const [article, setArticle] = useState<ArticleObject | null>(null)
