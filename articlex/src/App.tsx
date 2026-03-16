@@ -1,7 +1,8 @@
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { AlertCircle } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArticlePreview } from './components/ArticlePreview'
+import { LocalHistory } from './components/LocalHistory'
 import { UrlInput } from './components/UrlInput'
 import { AuroraBackground } from './components/ui/AuroraBackground'
 import { CustomCursor } from './components/ui/CustomCursor'
@@ -10,7 +11,7 @@ import {
   type FxTwitterError,
   fetchTweet,
 } from './lib/fxtwitter'
-import { addToHistory } from './lib/history'
+import { addToHistory, updateFormats } from './lib/history'
 import { normalizeTweet } from './lib/normalizer'
 import type { ArticleObject } from './types/article'
 
@@ -51,8 +52,10 @@ const headlineWord = {
 
 function App() {
   const [article, setArticle] = useState<ArticleObject | null>(null)
-  const [isConverting, setIsConverting] = useState(false)
-  const [convertError, setConvertError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [prefillUrl, setPrefillUrl] = useState('')
+  const previewRef = useRef<HTMLElement | null>(null)
 
   const resolveErrorMessage = (error: unknown): string => {
     const typedError = error as FxTwitterError
@@ -73,9 +76,10 @@ function App() {
     }
   }
 
-  const handleConvert = async (url: string) => {
-    setConvertError(null)
-    setIsConverting(true)
+  const handleSuccess = async (url: string) => {
+    setError(null)
+    setIsLoading(true)
+    setPrefillUrl(url)
 
     try {
       const apiResponse = await fetchTweet(url)
@@ -83,97 +87,140 @@ function App() {
       setArticle(normalized)
       addToHistory(normalized, [])
     } catch (error) {
-      setConvertError(resolveErrorMessage(error))
+      setError(resolveErrorMessage(error))
     } finally {
-      setIsConverting(false)
+      setIsLoading(false)
     }
   }
+
+  const handleHistorySelect = (url: string) => {
+    void handleSuccess(url)
+  }
+
+  const handleExport = (format: 'html' | 'md' | 'docx') => {
+    if (!article) {
+      return
+    }
+
+    updateFormats(article.tweetId, format)
+  }
+
+  useEffect(() => {
+    if (article) {
+      previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [article])
+
+  const recentDivider = (
+    <section className="pt-2">
+      <div
+        className="h-px w-full opacity-50"
+        style={{
+          background:
+            'linear-gradient(90deg, transparent, #7c3aed, #06b6d4, transparent)',
+        }}
+      />
+      <p className="mt-3 text-center font-mono text-[11px] uppercase tracking-[0.12em] text-text-dim">
+        ↓ Recent
+      </p>
+    </section>
+  )
+
+  const footer = (
+    <footer className="py-8 text-center font-mono text-[11px] text-text-dim">
+      ArticleX · Free forever · Built with FixTweet API
+    </footer>
+  )
+
+  const hero = (
+    <section className="pt-20 pb-10 text-center">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.1, duration: 0.45 }}
+        className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 font-mono text-[11px] uppercase tracking-[0.15em] text-text-muted"
+        style={{
+          background:
+            'linear-gradient(var(--bg-surface), var(--bg-surface)) padding-box, linear-gradient(135deg, #7c3aed, #06b6d4, #a855f7) border-box',
+          backgroundSize: '100% 100%, 200% 100%',
+          border: '1px solid transparent',
+          animation: 'shimmer 4s linear infinite',
+        }}
+      >
+        ✦ Free · No Login · Instant Export
+      </motion.div>
+
+      <motion.h1
+        variants={headlineContainer}
+        initial="hidden"
+        animate="show"
+        className="mt-6 font-jakarta text-[36px] font-extrabold leading-[1.1] tracking-[-0.03em] text-text-primary md:text-[68px]"
+      >
+        {headlineRows.map((row, rowIndex) => (
+          <span key={`row-${rowIndex}`} className="block">
+            {row.map((word, wordIndex) => (
+              <motion.span
+                key={`${word.value}-${wordIndex}`}
+                variants={headlineWord}
+                className={`inline-block ${wordIndex > 0 ? 'ml-3' : ''} ${
+                  word.gradient
+                    ? 'bg-[linear-gradient(135deg,#7c3aed,#06b6d4)] bg-clip-text text-transparent'
+                    : ''
+                }`}
+              >
+                {word.value}
+              </motion.span>
+            ))}
+          </span>
+        ))}
+      </motion.h1>
+
+      <motion.p
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.7, duration: 0.45 }}
+        className="mx-auto mt-6 max-w-2xl font-inter text-lg font-normal text-text-muted"
+      >
+        HTML. Markdown. Word. One URL. Zero friction.
+      </motion.p>
+    </section>
+  )
 
   return (
     <div className="relative min-h-screen overflow-x-clip bg-bg-base">
       <AuroraBackground />
       <CustomCursor />
 
-      <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 pb-14 pt-10 sm:px-6 lg:px-8">
-        <section className="mx-auto w-full max-w-4xl pt-8 text-center sm:pt-16">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.1, duration: 0.45 }}
-            className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 font-mono text-[11px] uppercase tracking-[0.15em] text-text-muted"
-            style={{
-              background:
-                'linear-gradient(var(--bg-surface), var(--bg-surface)) padding-box, linear-gradient(135deg, #7c3aed, #06b6d4, #a855f7) border-box',
-              backgroundSize: '100% 100%, 200% 100%',
-              border: '1px solid transparent',
-              animation: 'shimmer 4s linear infinite',
-            }}
-          >
-            ✦ Free · No Login · Instant Export
-          </motion.div>
+      <main className="relative z-10 mx-auto w-full max-w-3xl px-4">
+        {hero}
 
-          <motion.h1
-            variants={headlineContainer}
-            initial="hidden"
-            animate="show"
-            className="mt-6 font-jakarta text-[36px] font-extrabold leading-[1.1] tracking-[-0.03em] text-text-primary md:text-[68px]"
-          >
-            {headlineRows.map((row, rowIndex) => (
-              <span key={`row-${rowIndex}`} className="block">
-                {row.map((word, wordIndex) => (
-                  <motion.span
-                    key={`${word.value}-${wordIndex}`}
-                    variants={headlineWord}
-                    className={`inline-block ${wordIndex > 0 ? 'ml-3' : ''} ${
-                      word.gradient
-                        ? 'bg-[linear-gradient(135deg,#7c3aed,#06b6d4)] bg-clip-text text-transparent'
-                        : ''
-                    }`}
-                  >
-                    {word.value}
-                  </motion.span>
-                ))}
-              </span>
-            ))}
-          </motion.h1>
-
-          <motion.p
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7, duration: 0.45 }}
-            className="mx-auto mt-6 max-w-2xl font-inter text-lg font-normal text-text-muted"
-          >
-            HTML. Markdown. Word. One URL. Zero friction.
-          </motion.p>
-
-          <div
-            className="mt-8 h-px w-full opacity-40"
-            style={{
-              background:
-                'linear-gradient(90deg, transparent, #7c3aed, #06b6d4, transparent)',
-            }}
-          />
-        </section>
-
-        <section className="mx-auto w-full max-w-4xl">
-          <UrlInput onConvert={handleConvert} isLoading={isConverting} />
-          {convertError ? (
+        <section>
+          <UrlInput onSuccess={handleSuccess} isLoading={isLoading} prefillUrl={prefillUrl} />
+          {error ? (
             <motion.div
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               className="mt-4 inline-flex items-center gap-2 rounded-full border border-red-500/25 bg-red-500/10 px-3 py-1.5 text-sm text-red-300"
             >
               <AlertCircle className="h-4 w-4" />
-              <span>{convertError}</span>
+              <span>{error}</span>
             </motion.div>
           ) : null}
         </section>
 
-        {article ? (
-          <section className="mx-auto w-full max-w-4xl">
-            <ArticlePreview article={article} />
-          </section>
-        ) : null}
+        <section ref={previewRef} className="mt-8">
+          <AnimatePresence mode="wait">
+            {article ? <ArticlePreview key={article.tweetId} article={article} onExport={handleExport} /> : null}
+          </AnimatePresence>
+        </section>
+
+        <section className="mt-10">{recentDivider}</section>
+
+        <section className="mt-5 pb-6">
+          <LocalHistory onSelect={handleHistorySelect} />
+        </section>
+
+        {footer}
       </main>
     </div>
   )
