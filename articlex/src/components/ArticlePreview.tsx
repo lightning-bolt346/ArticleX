@@ -14,10 +14,6 @@ import {
 import { ExportButtons } from './ExportButtons'
 import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ImageLightbox } from './ui/ImageLightbox'
-import { generateDOCX } from '../lib/generators/docx'
-import { generateHTML } from '../lib/generators/html'
-import { generateMarkdown } from '../lib/generators/markdown'
-import { generatePDF } from '../lib/generators/pdf'
 import { ReadingSettingsButton } from './ui/ReadingSettings'
 import {
   READING_DEFAULTS,
@@ -28,7 +24,6 @@ import {
   type ReaderThemePalette,
   type ReadingConfig,
 } from '../lib/reading-config'
-import { generatePNG } from '../lib/generators/png'
 import type { ArticleObject, ContentBlock, InlineAnnotation } from '../types/article'
 import brandMark from '../assets/articlex-mark.svg'
 
@@ -49,7 +44,7 @@ function ReadingModeSwitch({
   showLabel?: boolean
 }) {
   return (
-    <button
+    <motion.button
       type="button"
       data-cursor="pointer"
       onClick={onToggle}
@@ -57,23 +52,25 @@ function ReadingModeSwitch({
       style={{ borderColor: 'var(--source-btn-border)', background: 'var(--source-btn-bg)' }}
       data-export-exclude
       aria-label={active ? 'Turn off reading mode' : 'Turn on reading mode'}
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
     >
       {showLabel ? (
-        <span className="px-1 font-mono text-[10px] uppercase tracking-[0.08em] text-text-muted">
+        <span className="hidden px-1 font-mono text-[10px] uppercase tracking-[0.08em] text-text-muted sm:inline">
           Reading
         </span>
       ) : null}
       <span
-        className="relative inline-flex h-[36px] w-[76px] items-center rounded-full p-1 transition-colors"
+        className="relative inline-flex h-[34px] w-[72px] items-center rounded-full p-1 transition-colors"
         style={{
           background: active
             ? 'linear-gradient(135deg, #5eead4, #60a5fa)'
-            : 'rgba(148, 163, 184, 0.28)',
+            : 'rgba(156, 163, 175, 0.34)',
         }}
       >
         <motion.span
-          className="absolute left-1 top-1 h-[28px] w-[28px] rounded-full bg-white shadow-[0_6px_14px_rgba(15,23,42,0.28)]"
-          animate={{ x: active ? 40 : 0 }}
+          className="absolute left-1 top-1 h-[26px] w-[26px] rounded-full bg-white shadow-[0_6px_14px_rgba(15,23,42,0.24)]"
+          animate={{ x: active ? 36 : 0 }}
           transition={{ type: 'spring', stiffness: 350, damping: 26 }}
         />
         <AnimatePresence mode="wait" initial={false}>
@@ -89,7 +86,7 @@ function ReadingModeSwitch({
           </motion.span>
         </AnimatePresence>
       </span>
-    </button>
+    </motion.button>
   )
 }
 
@@ -384,21 +381,33 @@ function ExportDropdown({
     setLoading(format)
     try {
       switch (format) {
-        case 'html':
+        case 'html': {
+          const { generateHTML } = await import('../lib/generators/html')
           generateHTML(article)
           break
-        case 'md':
+        }
+        case 'md': {
+          const { generateMarkdown } = await import('../lib/generators/markdown')
           generateMarkdown(article)
           break
-        case 'docx':
+        }
+        case 'docx': {
+          const { generateDOCX } = await import('../lib/generators/docx')
           await generateDOCX(article)
           break
-        case 'pdf':
+        }
+        case 'pdf': {
+          const { generatePDF } = await import('../lib/generators/pdf')
           await generatePDF(article)
           break
-        case 'png':
-          if (articleRef.current) await generatePNG(articleRef.current, `${handle}-article`)
+        }
+        case 'png': {
+          if (articleRef.current) {
+            const { generatePNG } = await import('../lib/generators/png')
+            await generatePNG(articleRef.current, `${handle}-article`)
+          }
           break
+        }
       }
       setSuccess(format)
       onExport(format)
@@ -420,7 +429,7 @@ function ExportDropdown({
         whileHover={{ scale: 1.03 }}
       >
         {success ? <Check className="h-3 w-3 text-green-400" /> : <ChevronDown className={`h-3 w-3 transition-transform ${open ? 'rotate-180' : ''}`} />}
-        Download
+        <span className="hidden sm:inline">Download</span>
       </motion.button>
 
       <AnimatePresence>
@@ -660,6 +669,7 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
       <ImageLightbox src={lightboxSrc} onClose={closeLightbox} />
 
       <motion.div
+        data-cursor-area="preview"
         style={{ ...scopedThemeStyle, maxWidth: cardMaxWidth[readingConfig.maxWidth], margin: '0 auto', width: '100%' }}
         layout
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
@@ -704,19 +714,20 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
               <ReadingModeSwitch active={readingMode} onToggle={() => setReadingMode((current) => !current)} />
 
               <motion.button
                 type="button"
                 data-cursor="pointer"
                 onClick={() => window.open(article.url, '_blank', 'noopener,noreferrer')}
-                className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-mono text-[11px] text-text-muted"
+                className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 font-mono text-[11px] text-text-muted sm:gap-2 sm:px-3"
                 style={{ background: 'var(--source-btn-bg)', borderColor: 'var(--source-btn-border)' }}
                 whileHover={{ scale: 1.03 }}
               >
                 <span className="inline-flex h-[14px] w-[14px] items-center justify-center rounded-full bg-white text-[10px] font-semibold text-black">𝕏</span>
-                View Source
+                <span className="hidden md:inline">View Source</span>
+                <span className="md:hidden">Source</span>
               </motion.button>
 
               <ExportDropdown article={article} articleRef={articleRef} onExport={onExport} />
@@ -780,6 +791,7 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
       <AnimatePresence>
         {readingMode ? (
           <motion.div
+            data-cursor-area="preview"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -798,7 +810,7 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
                 style={{ background: 'linear-gradient(to bottom, var(--bg-base), transparent)' }}
               >
                 <div
-                  className="flex items-center gap-3 rounded-full border px-2 py-2"
+                  className="flex items-center gap-2 rounded-full border p-1.5 sm:gap-3 sm:p-2"
                   style={{ borderColor: 'var(--source-btn-border)', background: 'var(--source-btn-bg)' }}
                 >
                   <ReadingSettingsButton

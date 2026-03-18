@@ -1,11 +1,13 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { AlignCenter, AlignJustify, AlignLeft, Minus, Plus, Settings2, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   READING_DEFAULTS,
   READING_THEME_OPTIONS,
+  getReaderThemePalette,
   saveReadingConfig,
+  type ReadingTheme,
   type ReadingConfig,
 } from '../../lib/reading-config'
 
@@ -59,6 +61,15 @@ export const ReadingSettingsButton = ({
     saveReadingConfig(next)
   }
 
+  const themePreviews = useMemo(
+    () =>
+      READING_THEME_OPTIONS.map((opt) => ({
+        option: opt,
+        palette: getReaderThemePalette(opt.value as ReadingTheme),
+      })),
+    [],
+  )
+
   const modal = (
     <AnimatePresence>
       {open && (
@@ -106,19 +117,36 @@ export const ReadingSettingsButton = ({
               <div>
                 <label className="mb-2 block font-mono text-[10px] uppercase tracking-wider text-text-muted">Theme</label>
                 <div className="grid grid-cols-2 gap-2">
-                  {READING_THEME_OPTIONS.map((opt) => (
+                  {themePreviews.map(({ option, palette }) => (
                     <button
-                      key={opt.value}
+                      key={option.value}
                       type="button"
-                      onClick={() => update({ theme: opt.value })}
+                      onClick={() => update({ theme: option.value })}
                       className={`rounded-lg border px-2.5 py-2 text-left transition-colors ${
-                        config.theme === opt.value
-                          ? 'border-accent-violet bg-accent-violet/10 text-accent-violet'
-                          : 'border-border-subtle text-text-muted hover:text-text-primary'
+                        config.theme === option.value
+                          ? 'ring-2 ring-accent-violet/70'
+                          : 'hover:opacity-95'
                       }`}
+                      style={{
+                        borderColor: palette.colors.cardBorder,
+                        background: palette.colors.cardBg,
+                        color: palette.colors.textPrimary,
+                      }}
                     >
-                      <p className="font-inter text-[11px] font-semibold leading-tight">{opt.label}</p>
-                      <p className="mt-0.5 font-inter text-[9px] opacity-80">{opt.blurb}</p>
+                      <p className="font-inter text-[11px] font-semibold leading-tight">{option.label}</p>
+                      <p className="mt-0.5 text-[9px] opacity-80">{option.blurb}</p>
+                      <div
+                        className="mt-2 rounded-md border px-2 py-1.5 text-[9px]"
+                        style={{
+                          borderColor: palette.colors.borderSubtle,
+                          background: palette.colors.quoteBg,
+                          color: palette.colors.bodyText,
+                          fontFamily: palette.bodyFont,
+                        }}
+                      >
+                        <p style={{ fontFamily: palette.headingFont, color: palette.colors.textPrimary }}>The quick reader</p>
+                        <p className="mt-0.5" style={{ color: palette.colors.textMuted }}>Focused reading preview</p>
+                      </div>
                     </button>
                   ))}
                 </div>

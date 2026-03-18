@@ -10,6 +10,12 @@ interface TipModalProps {
 }
 
 const PRESETS = [49, 99, 199, 499] as const
+const LOVE_PRESETS = [
+  { id: 'love', icon: '❤', label: 'Love' },
+  { id: 'big-love', icon: '💜', label: 'Big Love' },
+  { id: 'spark', icon: '✨', label: 'Spark' },
+  { id: 'hugs', icon: '🤍', label: 'Hugs' },
+] as const
 const GRATITUDE_HEARTS = [
   { id: 'h1', left: '12%', top: '70%', duration: 2.2 },
   { id: 'h2', left: '23%', top: '58%', duration: 2.32 },
@@ -25,6 +31,7 @@ type TipView = 'form' | 'success' | 'gratitude'
 
 export const TipModal = ({ open, onClose, razorpayStatus }: TipModalProps) => {
   const [selected, setSelected] = useState<number>(99)
+  const [selectedLove, setSelectedLove] = useState<string>('big-love')
   const [custom, setCustom] = useState(false)
   const [customValue, setCustomValue] = useState('')
   const [view, setView] = useState<TipView>('form')
@@ -66,6 +73,7 @@ export const TipModal = ({ open, onClose, razorpayStatus }: TipModalProps) => {
 
   const amount = custom ? (parseInt(customValue) || 0) : selected
   const isValid = amount >= 10
+  const paymentsUnavailable = razorpayStatus !== 'working'
 
   const handlePay = () => {
     if (paying) return
@@ -258,37 +266,58 @@ export const TipModal = ({ open, onClose, razorpayStatus }: TipModalProps) => {
                     ) : null}
 
                     <div className="mt-5 flex flex-wrap gap-2">
-                      {PRESETS.map((val) => (
-                        <button
-                          key={val}
-                          type="button"
-                          onClick={() => selectPreset(val)}
-                          className={`rounded-xl border px-4 py-2.5 font-mono text-sm font-medium transition-all ${
-                            !custom && selected === val
-                              ? 'border-transparent bg-[linear-gradient(135deg,#7c3aed,#06b6d4)] text-white shadow-lg shadow-accent-violet/20'
-                              : 'border-border-subtle text-text-muted hover:border-accent-violet/30 hover:text-text-primary'
-                          }`}
-                          style={!custom && selected === val ? {} : { background: 'var(--badge-bg)' }}
-                        >
-                          ₹{val}
-                        </button>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={() => { setCustom(true); setCustomValue('') }}
-                        className={`rounded-xl border px-4 py-2.5 font-inter text-sm font-medium transition-all ${
-                          custom
-                            ? 'border-transparent bg-[linear-gradient(135deg,#7c3aed,#06b6d4)] text-white shadow-lg shadow-accent-violet/20'
-                            : 'border-border-subtle text-text-muted hover:border-accent-violet/30 hover:text-text-primary'
-                        }`}
-                        style={custom ? {} : { background: 'var(--badge-bg)' }}
-                      >
-                        Custom
-                      </button>
+                      {paymentsUnavailable
+                        ? LOVE_PRESETS.map((chip) => (
+                          <button
+                            key={chip.id}
+                            type="button"
+                            onClick={() => setSelectedLove(chip.id)}
+                            className={`rounded-xl border px-4 py-2.5 font-inter text-sm font-medium transition-all ${
+                              selectedLove === chip.id
+                                ? 'border-transparent bg-[linear-gradient(135deg,#7c3aed,#06b6d4)] text-white shadow-lg shadow-accent-violet/20'
+                                : 'border-border-subtle text-text-muted hover:border-accent-violet/30 hover:text-text-primary'
+                            }`}
+                            style={selectedLove === chip.id ? {} : { background: 'var(--badge-bg)' }}
+                          >
+                            <span className="mr-1.5">{chip.icon}</span>
+                            {chip.label}
+                          </button>
+                        ))
+                        : (
+                          <>
+                            {PRESETS.map((val) => (
+                              <button
+                                key={val}
+                                type="button"
+                                onClick={() => selectPreset(val)}
+                                className={`rounded-xl border px-4 py-2.5 font-mono text-sm font-medium transition-all ${
+                                  !custom && selected === val
+                                    ? 'border-transparent bg-[linear-gradient(135deg,#7c3aed,#06b6d4)] text-white shadow-lg shadow-accent-violet/20'
+                                    : 'border-border-subtle text-text-muted hover:border-accent-violet/30 hover:text-text-primary'
+                                }`}
+                                style={!custom && selected === val ? {} : { background: 'var(--badge-bg)' }}
+                              >
+                                ₹{val}
+                              </button>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() => { setCustom(true); setCustomValue('') }}
+                              className={`rounded-xl border px-4 py-2.5 font-inter text-sm font-medium transition-all ${
+                                custom
+                                  ? 'border-transparent bg-[linear-gradient(135deg,#7c3aed,#06b6d4)] text-white shadow-lg shadow-accent-violet/20'
+                                  : 'border-border-subtle text-text-muted hover:border-accent-violet/30 hover:text-text-primary'
+                              }`}
+                              style={custom ? {} : { background: 'var(--badge-bg)' }}
+                            >
+                              Custom
+                            </button>
+                          </>
+                        )}
                     </div>
 
                     <AnimatePresence>
-                      {custom && (
+                      {custom && !paymentsUnavailable && (
                         <motion.div
                           initial={{ height: 0, opacity: 0 }}
                           animate={{ height: 'auto', opacity: 1 }}

@@ -9,6 +9,7 @@ export const CustomCursor = () => {
     return window.matchMedia('(pointer: fine)').matches && window.innerWidth >= 1024
   })
   const [isPointer, setIsPointer] = useState(false)
+  const [isPreviewArea, setIsPreviewArea] = useState(false)
   const [hasMoved, setHasMoved] = useState(false)
   const cursorX = useMotionValue(-100)
   const cursorY = useMotionValue(-100)
@@ -57,12 +58,15 @@ export const CustomCursor = () => {
       }
       const semanticPointerTarget = Boolean(target.closest('a,button,input,textarea,select,summary,[role="button"]'))
       const customPointerTarget = Boolean(target.closest('[data-cursor="pointer"]'))
+      const previewAreaTarget = Boolean(target.closest('[data-cursor-area="preview"]'))
       setIsPointer(semanticPointerTarget || customPointerTarget)
+      setIsPreviewArea(previewAreaTarget)
     }
 
     const onLeave = () => {
       setHasMoved(false)
       setIsPointer(false)
+      setIsPreviewArea(false)
     }
 
     window.addEventListener('mousemove', onMouseMove)
@@ -84,14 +88,14 @@ export const CustomCursor = () => {
       style={{
         x: smoothX,
         y: smoothY,
-        width: 30,
-        height: 30,
-        marginLeft: -15,
-        marginTop: -15,
+        width: 28,
+        height: 28,
+        marginLeft: -14,
+        marginTop: -14,
         background: '#ffffff',
         mixBlendMode: 'difference',
       }}
-      animate={{ opacity: hasMoved ? 0.95 : 0, scale: isPointer ? 1.26 : 1 }}
+      animate={{ opacity: hasMoved ? 0.95 : 0, scale: isPreviewArea ? (isPointer ? 0.86 : 0.72) : (isPointer ? 1.18 : 1) }}
       transition={{ duration: 0.16 }}
     />
   )
