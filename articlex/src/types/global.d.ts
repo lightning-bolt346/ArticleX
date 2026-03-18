@@ -5,7 +5,11 @@ interface RazorpayOptions {
   name: string
   description: string
   image?: string
-  handler: (response: { razorpay_payment_id: string }) => void
+  handler: (response: {
+    razorpay_payment_id: string
+    razorpay_order_id?: string
+    razorpay_signature?: string
+  }) => void
   prefill?: { name?: string; email?: string; contact?: string }
   notes?: Record<string, string>
   theme?: { color?: string }
