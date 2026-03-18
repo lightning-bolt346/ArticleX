@@ -9,6 +9,7 @@ import { ContactPage } from './pages/ContactPage'
 import { FaqPage } from './pages/FaqPage'
 import { FeaturesPage } from './pages/FeaturesPage'
 import { HomePage } from './pages/HomePage'
+import { env } from './lib/env'
 
 type Theme = 'dark' | 'light'
 type RazorpayStatus = 'checking' | 'working' | 'unavailable'
@@ -24,7 +25,7 @@ function getStoredTheme(): Theme {
 
 function getInitialRazorpayStatus(): RazorpayStatus {
   if (typeof window === 'undefined') return 'checking'
-  const key = import.meta.env.VITE_RAZORPAY_KEY_ID
+  const key = env.razorpayKeyId
   if (!key) return 'unavailable'
   if (window.Razorpay) return 'working'
   return 'checking'
@@ -60,7 +61,7 @@ function App() {
   }, [theme])
 
   useEffect(() => {
-    const key = import.meta.env.VITE_RAZORPAY_KEY_ID
+    const key = env.razorpayKeyId
     if (!key || window.Razorpay) return
     const script = document.querySelector('script[src*="checkout.razorpay.com/v1/checkout.js"]')
     if (!(script instanceof HTMLScriptElement)) return

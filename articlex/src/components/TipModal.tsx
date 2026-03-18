@@ -2,6 +2,8 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { CheckCircle2, Heart, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { env } from '../lib/env'
+import { verifyPayment } from '../lib/payments/verification'
 
 interface TipModalProps {
   open: boolean
@@ -85,7 +87,7 @@ export const TipModal = ({ open, onClose, razorpayStatus }: TipModalProps) => {
 
     if (!isValid) return
 
-    const key = import.meta.env.VITE_RAZORPAY_KEY_ID
+    const key = env.razorpayKeyId
     if (!key || !window.Razorpay) {
       setView('gratitude')
       return
@@ -99,9 +101,25 @@ export const TipModal = ({ open, onClose, razorpayStatus }: TipModalProps) => {
       currency: 'INR',
       name: 'ArticleX',
       description: 'Support the creator ☕',
-      handler: () => {
-        setPaying(false)
-        setView('success')
+      handler: (response) => {
+        void verifyPayment({
+          provider: 'razorpay',
+          payload: {
+            paymentId: response.razorpay_payment_id,
+            orderId: response.razorpay_order_id,
+            signature: response.razorpay_signature,
+            amount,
+            currency: 'INR',
+          },
+        }).then((verificationResult) => {
+          setPaying(false)
+          if (verificationResult.status === 'failed') {
+            setView('gratitude')
+            return
+          }
+
+          setView('success')
+        })
       },
       prefill: {},
       notes: { purpose: 'tip' },

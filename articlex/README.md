@@ -1,73 +1,81 @@
-# React + TypeScript + Vite
+# ArticleX (app package)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+ArticleX is a client-side React SPA that converts X/Twitter post URLs into readable exports.
 
-Currently, two official plugins are available:
+## Local development
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Run everything from this folder:
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm ci
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Useful commands:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run lint
+npm run build
+npm run preview
 ```
+
+## Environment variables
+
+Copy and edit:
+
+```bash
+cp .env.example .env.local
+```
+
+Most deployments only need `VITE_BASE_PATH=/`.
+
+Optional integration keys:
+
+- `VITE_RAZORPAY_KEY_ID`
+- `VITE_STRIPE_PUBLISHABLE_KEY`
+- `VITE_CLERK_PUBLISHABLE_KEY`
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- Firebase `VITE_FIREBASE_*` keys
+
+Optional payment verification endpoints:
+
+- `VITE_RAZORPAY_VERIFY_ENDPOINT`
+- `VITE_STRIPE_VERIFY_ENDPOINT`
+- Optional shared prefix: `VITE_API_BASE_URL`
+
+### Payment verification behavior
+
+- If verification endpoints are **not** set, successful payment callbacks are accepted client-side (current behavior).
+- If endpoints are set, the frontend sends a POST request and only treats payment as successful when backend verification returns `{ "verified": true }`.
+
+This makes it easy to move to secure backend verification later (recommended for production billing).
+
+Example verification request payload (Razorpay):
+
+```json
+{
+  "provider": "razorpay",
+  "paymentId": "pay_xxx",
+  "orderId": "order_xxx",
+  "signature": "signature_xxx",
+  "amount": 99,
+  "currency": "INR"
+}
+```
+
+## Deploying this folder to Vercel directly
+
+1. Import repo in Vercel.
+2. Set **Root Directory** to `articlex`.
+3. Build settings:
+   - Install command: `npm ci`
+   - Build command: `npm run build`
+   - Output directory: `dist`
+4. Add environment variables in Project Settings.
+5. Deploy.
+
+## Notes
+
+- Vite `base` is now controlled by `VITE_BASE_PATH` (defaults to `/`).
+- Router uses `HashRouter`, so no SPA rewrite config is required for client routes.
