@@ -369,7 +369,7 @@ export const generateDOCX = async (article: ArticleObject): Promise<void> => {
                 children: [
                   new TextRun({ text: 'articlex.app', size: 16, color: '0563C1', font: 'Calibri', underline: { type: 'single' as const } }),
                 ],
-                link: 'https://lightning-bolt346.github.io/ArticleX/',
+                link: 'https://articlex.vercel.app/',
               }),
               new TextRun({ text: ` · ${new Date().toLocaleDateString()}`, size: 16, color: '888888', font: 'Calibri', italics: true }),
             ],
