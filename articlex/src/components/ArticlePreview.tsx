@@ -12,7 +12,6 @@ import {
   ImageIcon,
 } from 'lucide-react'
 import { ExportButtons } from './ExportButtons'
-import { createPortal } from 'react-dom'
 import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ImageLightbox } from './ui/ImageLightbox'
 import { generateDOCX } from '../lib/generators/docx'
@@ -779,79 +778,78 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
       </motion.div>
 
       <AnimatePresence>
-        {readingMode
-          ? createPortal(
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 z-[9000]"
+        {readingMode ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[120] overflow-y-auto"
+            style={{ ...scopedThemeStyle, background: 'var(--bg-base)' }}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 14 }}
+              transition={{ duration: 0.22 }}
+              className="min-h-full px-4 pb-16 sm:px-6"
+            >
+              <section
+                className="sticky top-0 z-20 flex justify-end py-4"
+                style={{ background: 'linear-gradient(to bottom, var(--bg-base), transparent)' }}
               >
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 20 }}
-                  transition={{ duration: 0.28, ease: 'easeOut' }}
-                  className="relative h-full overflow-y-auto"
-                  style={{ ...scopedThemeStyle, background: 'var(--bg-base)' }}
+                <div
+                  className="flex items-center gap-3 rounded-full border px-2 py-2"
+                  style={{ borderColor: 'var(--source-btn-border)', background: 'var(--source-btn-bg)' }}
                 >
-                  <section className="sticky top-0 z-20 flex justify-end px-4 py-4 sm:px-6"
-                    style={{ background: 'linear-gradient(to bottom, var(--bg-base), transparent)' }}
+                  <ReadingSettingsButton
+                    config={readingConfig}
+                    onChange={setReadingConfig}
+                    showReadingModeControls
+                    compactLabel
+                  />
+                  <ReadingModeSwitch active={readingMode} onToggle={() => setReadingMode(false)} showLabel={false} />
+                </div>
+              </section>
+
+              <motion.article
+                layout
+                initial={{ opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                transition={{ duration: 0.22 }}
+                className="mx-auto"
+                style={{
+                  width: `min(${readingConfig.readingModeWidth}vw, 1480px)`,
+                  maxWidth: 'calc(100vw - 1.5rem)',
+                }}
+              >
+                {article.title ? (
+                  <h2
+                    className="mb-4 text-[34px] font-bold leading-[1.2] tracking-[-0.02em] text-text-primary"
+                    style={{ fontFamily: themePalette.headingFont, textAlign: readingConfig.readingModeAlign }}
                   >
-                    <div className="flex items-center gap-3 rounded-full border px-2 py-2"
-                      style={{ borderColor: 'var(--source-btn-border)', background: 'var(--source-btn-bg)' }}
-                    >
-                      <ReadingSettingsButton
-                        config={readingConfig}
-                        onChange={setReadingConfig}
-                        showReadingModeControls
-                        compactLabel
-                      />
-                      <ReadingModeSwitch active={readingMode} onToggle={() => setReadingMode(false)} showLabel={false} />
-                    </div>
+                    {article.title}
+                  </h2>
+                ) : null}
+
+                <p
+                  className="mb-6 font-inter text-xs text-text-muted"
+                  style={{ textAlign: readingConfig.readingModeAlign }}
+                >
+                  {article.authorName} · {article.authorHandle} · {publishedAt}
+                </p>
+
+                {article.coverImage ? (
+                  <section className="mb-6 overflow-hidden rounded-2xl">
+                    <ClickableImage src={article.coverImage} alt="Cover" className="w-full object-cover" onOpen={openLightbox} />
                   </section>
+                ) : null}
 
-                  <motion.article
-                    layout
-                    initial={{ opacity: 0, y: 18 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    transition={{ duration: 0.25 }}
-                    className="mx-auto pb-16"
-                    style={{
-                      width: `min(${readingConfig.readingModeWidth}vw, 1480px)`,
-                      maxWidth: 'calc(100vw - 1.5rem)',
-                    }}
-                  >
-                    {article.title ? (
-                      <h2
-                        className="mb-4 text-[34px] font-bold leading-[1.2] tracking-[-0.02em] text-text-primary"
-                        style={{ fontFamily: themePalette.headingFont, textAlign: readingConfig.readingModeAlign }}
-                      >
-                        {article.title}
-                      </h2>
-                    ) : null}
-
-                    <p
-                      className="mb-6 font-inter text-xs text-text-muted"
-                      style={{ textAlign: readingConfig.readingModeAlign }}
-                    >
-                      {article.authorName} · {article.authorHandle} · {publishedAt}
-                    </p>
-
-                    {article.coverImage ? (
-                      <section className="mb-6 overflow-hidden rounded-2xl">
-                        <ClickableImage src={article.coverImage} alt="Cover" className="w-full object-cover" onOpen={openLightbox} />
-                      </section>
-                    ) : null}
-
-                    {renderBody(true, true)}
-                  </motion.article>
-                </motion.div>
-              </motion.div>,
-              document.body,
-            )
-          : null}
+                {renderBody(true, true)}
+              </motion.article>
+            </motion.div>
+          </motion.div>
+        ) : null}
       </AnimatePresence>
     </>
   )
