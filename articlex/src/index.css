@@ -104,6 +104,10 @@ body {
   }
 }
 
+body.articlex-reading-mode .articlex-theme-toggle {
+  display: none !important;
+}
+
 body::before {
   content: '';
   position: fixed;

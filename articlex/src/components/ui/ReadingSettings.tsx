@@ -38,6 +38,7 @@ interface ReadingSettingsProps {
   onChange: (config: ReadingConfig) => void
   showReadingModeControls?: boolean
   compactLabel?: boolean
+  hidePreviewWidth?: boolean
 }
 
 export const ReadingSettingsButton = ({
@@ -45,6 +46,7 @@ export const ReadingSettingsButton = ({
   onChange,
   showReadingModeControls = false,
   compactLabel = false,
+  hidePreviewWidth = false,
 }: ReadingSettingsProps) => {
   const [open, setOpen] = useState(false)
 
@@ -77,8 +79,9 @@ export const ReadingSettingsButton = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+          className="fixed inset-0 z-[9999] flex items-end justify-center p-2 sm:items-center sm:p-4"
           style={{ position: 'fixed' }}
+          data-cursor-area="preview"
           onClick={() => setOpen(false)}
         >
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
@@ -87,8 +90,13 @@ export const ReadingSettingsButton = ({
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 20 }}
             onClick={(e) => e.stopPropagation()}
-            className="relative z-10 w-full max-w-sm rounded-2xl border p-6 shadow-2xl"
-            style={{ background: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}
+            className="relative z-10 w-full overflow-y-auto rounded-2xl border p-5 shadow-2xl sm:p-6"
+            style={{
+              background: 'var(--bg-surface)',
+              borderColor: 'var(--card-border)',
+              maxWidth: showReadingModeControls ? '640px' : '560px',
+              maxHeight: 'calc(100dvh - 1rem)',
+            }}
           >
             <div className="mb-5 flex items-center justify-between">
               <h3 className="font-jakarta text-lg font-bold text-text-primary">Reading Settings</h3>
@@ -165,7 +173,8 @@ export const ReadingSettingsButton = ({
                 </div>
               </div>
 
-              <div>
+              {!hidePreviewWidth ? (
+                <div>
                 <label className="mb-2 block font-mono text-[10px] uppercase tracking-wider text-text-muted">Content Width</label>
                 <div className="flex gap-2">
                   {WIDTH_OPTIONS.map((opt) => (
@@ -175,7 +184,8 @@ export const ReadingSettingsButton = ({
                     </button>
                   ))}
                 </div>
-              </div>
+                </div>
+              ) : null}
 
               {showReadingModeControls ? (
                 <>
@@ -260,13 +270,17 @@ export const ReadingSettingsButton = ({
         type="button"
         data-cursor="pointer"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-mono text-[11px] text-text-muted"
+        className={
+          compactLabel
+            ? 'inline-flex h-9 w-9 items-center justify-center rounded-full border font-mono text-[11px] text-text-muted'
+            : 'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-mono text-[11px] text-text-muted'
+        }
         style={{ background: 'var(--source-btn-bg)', borderColor: 'var(--source-btn-border)' }}
         whileHover={{ scale: 1.03 }}
         data-export-exclude
       >
         <Settings2 className="h-3 w-3" />
-        <span className={compactLabel ? 'hidden' : 'hidden sm:inline'}>Reading</span>
+        {!compactLabel ? <span className="hidden sm:inline">Reading</span> : null}
       </motion.button>
       {createPortal(modal, document.body)}
     </>

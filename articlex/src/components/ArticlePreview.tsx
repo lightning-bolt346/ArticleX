@@ -48,7 +48,7 @@ function ReadingModeSwitch({
       type="button"
       data-cursor="pointer"
       onClick={onToggle}
-      className="inline-flex items-center gap-2 rounded-full border px-2 py-1.5"
+      className="inline-flex h-9 items-center gap-2 rounded-full border px-2"
       style={{ borderColor: 'var(--source-btn-border)', background: 'var(--source-btn-bg)' }}
       data-export-exclude
       aria-label={active ? 'Turn off reading mode' : 'Turn on reading mode'}
@@ -61,30 +61,30 @@ function ReadingModeSwitch({
         </span>
       ) : null}
       <span
-        className="relative inline-flex h-[34px] w-[72px] items-center rounded-full p-1 transition-colors"
+        className="relative inline-flex h-7 w-[66px] items-center rounded-full p-0.5 transition-colors"
         style={{
           background: active
             ? 'linear-gradient(135deg, #5eead4, #60a5fa)'
             : 'rgba(156, 163, 175, 0.34)',
         }}
       >
+        <span
+          className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 font-mono text-[8px] font-semibold uppercase tracking-[0.08em]"
+          style={{ color: active ? 'rgba(15,23,42,0.45)' : 'rgba(248,250,252,0.92)' }}
+        >
+          Off
+        </span>
+        <span
+          className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 font-mono text-[8px] font-semibold uppercase tracking-[0.08em]"
+          style={{ color: active ? 'rgba(15,23,42,0.92)' : 'rgba(248,250,252,0.45)' }}
+        >
+          On
+        </span>
         <motion.span
-          className="absolute left-1 top-1 h-[26px] w-[26px] rounded-full bg-white shadow-[0_6px_14px_rgba(15,23,42,0.24)]"
-          animate={{ x: active ? 36 : 0 }}
+          className="absolute left-0.5 top-0.5 h-6 w-6 rounded-full bg-white shadow-[0_6px_14px_rgba(15,23,42,0.24)]"
+          animate={{ x: active ? 38 : 0 }}
           transition={{ type: 'spring', stiffness: 350, damping: 26 }}
         />
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.span
-            key={active ? 'on' : 'off'}
-            initial={{ opacity: 0, y: 2 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -2 }}
-            className="absolute inset-0 flex items-center justify-center px-2 font-mono text-[9px] font-semibold uppercase tracking-[0.08em]"
-            style={{ color: active ? '#0f172a' : '#f8fafc' }}
-          >
-            {active ? 'On' : 'Off'}
-          </motion.span>
-        </AnimatePresence>
       </span>
     </motion.button>
   )
@@ -510,6 +510,13 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
   }, [readingMode])
 
   useEffect(() => {
+    document.body.classList.toggle('articlex-reading-mode', readingMode)
+    return () => {
+      document.body.classList.remove('articlex-reading-mode')
+    }
+  }, [readingMode])
+
+  useEffect(() => {
     if (readingMode) {
       document.body.style.overflow = 'hidden'
     } else {
@@ -715,8 +722,6 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
             </div>
 
             <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-              <ReadingModeSwitch active={readingMode} onToggle={() => setReadingMode((current) => !current)} />
-
               <motion.button
                 type="button"
                 data-cursor="pointer"
@@ -732,6 +737,7 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
 
               <ExportDropdown article={article} articleRef={articleRef} onExport={onExport} />
               <ReadingSettingsButton config={readingConfig} onChange={setReadingConfig} />
+              <ReadingModeSwitch active={readingMode} onToggle={() => setReadingMode((current) => !current)} />
             </div>
           </section>
 
@@ -818,6 +824,7 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
                     onChange={setReadingConfig}
                     showReadingModeControls
                     compactLabel
+                    hidePreviewWidth
                   />
                   <ReadingModeSwitch active={readingMode} onToggle={() => setReadingMode(false)} showLabel={false} />
                 </div>
