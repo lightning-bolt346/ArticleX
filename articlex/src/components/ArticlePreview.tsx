@@ -10,9 +10,6 @@ import {
   FileType,
   Globe,
   ImageIcon,
-  Maximize2,
-  Minimize2,
-  X,
 } from 'lucide-react'
 import { ExportButtons } from './ExportButtons'
 import { createPortal } from 'react-dom'
@@ -43,45 +40,60 @@ interface ArticlePreviewProps {
   onExport: (format: string) => void
 }
 
-function FocusToggleButton({
+function ReadingModeSwitch({
   active,
-  onClick,
-  compact = false,
+  onToggle,
+  showLabel = true,
 }: {
   active: boolean
-  onClick: () => void
-  compact?: boolean
+  onToggle: () => void
+  showLabel?: boolean
 }) {
   return (
-    <motion.button
+    <button
       type="button"
       data-cursor="pointer"
-      onClick={onClick}
-      className={`inline-flex items-center rounded-full border font-mono text-[11px] text-text-muted ${
-        compact ? 'gap-1.5 px-2.5 py-1.5' : 'gap-2 px-3 py-1.5'
-      }`}
-      style={{ background: 'var(--source-btn-bg)', borderColor: 'var(--source-btn-border)' }}
-      whileHover={{ scale: 1.03 }}
-      whileTap={{ scale: 0.96 }}
+      onClick={onToggle}
+      className="inline-flex items-center gap-2 rounded-full border px-2 py-1.5"
+      style={{ borderColor: 'var(--source-btn-border)', background: 'var(--source-btn-bg)' }}
       data-export-exclude
-      aria-label={active ? 'Exit focus mode' : 'Enter focus mode'}
+      aria-label={active ? 'Turn off reading mode' : 'Turn on reading mode'}
     >
-      <AnimatePresence mode="wait" initial={false}>
+      {showLabel ? (
+        <span className="px-1 font-mono text-[10px] uppercase tracking-[0.08em] text-text-muted">
+          Reading
+        </span>
+      ) : null}
+      <span
+        className="relative inline-flex h-[36px] w-[76px] items-center rounded-full p-1 transition-colors"
+        style={{
+          background: active
+            ? 'linear-gradient(135deg, #5eead4, #60a5fa)'
+            : 'rgba(148, 163, 184, 0.28)',
+        }}
+      >
         <motion.span
-          key={active ? 'exit' : 'enter'}
-          initial={{ rotate: -20, opacity: 0, scale: 0.75 }}
-          animate={{ rotate: 0, opacity: 1, scale: 1 }}
-          exit={{ rotate: 20, opacity: 0, scale: 0.75 }}
-          transition={{ duration: 0.18 }}
-          className="inline-flex items-center gap-2"
-        >
-          {active ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
-          {!compact ? <span>{active ? 'Exit Focus' : 'Focus Mode'}</span> : null}
-        </motion.span>
-      </AnimatePresence>
-    </motion.button>
+          className="absolute left-1 top-1 h-[28px] w-[28px] rounded-full bg-white shadow-[0_6px_14px_rgba(15,23,42,0.28)]"
+          animate={{ x: active ? 40 : 0 }}
+          transition={{ type: 'spring', stiffness: 350, damping: 26 }}
+        />
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.span
+            key={active ? 'on' : 'off'}
+            initial={{ opacity: 0, y: 2 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -2 }}
+            className="absolute inset-0 flex items-center justify-center px-2 font-mono text-[9px] font-semibold uppercase tracking-[0.08em]"
+            style={{ color: active ? '#0f172a' : '#f8fafc' }}
+          >
+            {active ? 'On' : 'Off'}
+          </motion.span>
+        </AnimatePresence>
+      </span>
+    </button>
   )
 }
+
 
 interface TextSegment {
   text: string
@@ -207,6 +219,7 @@ function RichContentRenderer({
   bodyFont,
   bodyFontSize,
   bodyLineHeight,
+  textAlign,
 }: {
   blocks: ContentBlock[]
   tweetId: string
@@ -215,6 +228,7 @@ function RichContentRenderer({
   bodyFont: string
   bodyFontSize: number
   bodyLineHeight: number
+  textAlign: CSSProperties['textAlign']
 }) {
   const [loadedImages, setLoadedImages] = useState<Record<number, boolean>>({})
   const linkDecoration = themePalette.id === 'sepia-comfort' ? 'dotted' : 'solid'
@@ -234,12 +248,16 @@ function RichContentRenderer({
       {groups.map((group, gi) => {
         if (group.type === 'list-item') {
           return (
-            <ul key={`g-${gi}`} className="my-4 ml-5 list-disc space-y-2">
+            <ul
+              key={`g-${gi}`}
+              className="my-4 ml-5 list-disc space-y-2"
+              style={{ textAlign, listStylePosition: textAlign === 'left' ? 'outside' : 'inside' }}
+            >
               {group.items.map(({ block, index }) => (
                 <li
                   key={`${tweetId}-li-${index}`}
                   className="marker:text-accent-violet"
-                  style={{ color: 'var(--body-text)', fontFamily: bodyFont, fontSize: `${bodyFontSize}px`, lineHeight: bodyLineHeight }}
+                  style={{ color: 'var(--body-text)', fontFamily: bodyFont, fontSize: `${bodyFontSize}px`, lineHeight: bodyLineHeight, textAlign }}
                 >
                   {renderAnnotatedText(block.text, block.annotations, linkDecoration)}
                 </li>
@@ -255,7 +273,7 @@ function RichContentRenderer({
                 <h2
                   key={`${tweetId}-h1-${index}`}
                   className="mt-10 mb-4 border-b border-border-subtle pb-3 text-[1.6em] font-extrabold leading-[1.3] tracking-[-0.01em] text-text-primary"
-                  style={{ fontFamily: themePalette.headingFont }}
+                  style={{ fontFamily: themePalette.headingFont, textAlign }}
                 >
                   {renderAnnotatedText(block.text, block.annotations, linkDecoration)}
                 </h2>
@@ -263,7 +281,7 @@ function RichContentRenderer({
                 <h3
                   key={`${tweetId}-h2-${index}`}
                   className="mt-8 mb-3 text-[1.35em] font-bold leading-[1.3] tracking-[-0.01em] text-text-primary"
-                  style={{ fontFamily: themePalette.headingFont }}
+                  style={{ fontFamily: themePalette.headingFont, textAlign }}
                 >
                   {renderAnnotatedText(block.text, block.annotations, linkDecoration)}
                 </h3>
@@ -280,6 +298,7 @@ function RichContentRenderer({
                     fontFamily: bodyFont,
                     fontSize: `${bodyFontSize}px`,
                     lineHeight: bodyLineHeight,
+                    textAlign,
                   }}
                 >
                   {renderAnnotatedText(block.text, block.annotations, linkDecoration)}
@@ -314,7 +333,7 @@ function RichContentRenderer({
                 <p
                   key={`${tweetId}-p-${index}`}
                   className="mb-[1em]"
-                  style={{ color: 'var(--body-text)', fontFamily: bodyFont, fontSize: `${bodyFontSize}px`, lineHeight: bodyLineHeight }}
+                  style={{ color: 'var(--body-text)', fontFamily: bodyFont, fontSize: `${bodyFontSize}px`, lineHeight: bodyLineHeight, textAlign }}
                 >
                   {renderAnnotatedText(block.text, block.annotations, linkDecoration)}
                 </p>
@@ -450,7 +469,7 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
   const [expanded, setExpanded] = useState(false)
   const [avatarError, setAvatarError] = useState(false)
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
-  const [focusMode, setFocusMode] = useState(false)
+  const [readingMode, setReadingMode] = useState(false)
   const [themeNow, setThemeNow] = useState(() => new Date())
   const [readingConfig, setReadingConfig] = useState<ReadingConfig>(getReadingConfig)
   const articleRef = useRef<HTMLElement>(null)
@@ -474,16 +493,16 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
   }, [readingConfig.theme])
 
   useEffect(() => {
-    if (!focusMode) return
+    if (!readingMode) return
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setFocusMode(false)
+      if (event.key === 'Escape') setReadingMode(false)
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [focusMode])
+  }, [readingMode])
 
   useEffect(() => {
-    if (focusMode) {
+    if (readingMode) {
       document.body.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = ''
@@ -491,7 +510,7 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
     return () => {
       document.body.style.overflow = ''
     }
-  }, [focusMode])
+  }, [readingMode])
 
   const themePalette = useMemo(
     () => getReaderThemePalette(readingConfig.theme, themeNow),
@@ -542,7 +561,7 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
   const openLightbox = useCallback((src: string) => setLightboxSrc(src), [])
   const closeLightbox = useCallback(() => setLightboxSrc(null), [])
 
-  const renderBody = (forceExpanded: boolean) => (
+  const renderBody = (forceExpanded: boolean, readingSurface: boolean) => (
     <>
       <section className="relative">
         {hasRichContent ? (
@@ -552,6 +571,7 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
               fontFamily: bodyFont,
               fontSize: `${readingConfig.fontSize}px`,
               lineHeight: readingConfig.lineHeight,
+              textAlign: readingSurface ? readingConfig.readingModeAlign : 'left',
             }}
           >
             <RichContentRenderer
@@ -562,6 +582,7 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
               bodyFont={bodyFont}
               bodyFontSize={readingConfig.fontSize}
               bodyLineHeight={readingConfig.lineHeight}
+              textAlign={readingSurface ? readingConfig.readingModeAlign : 'left'}
             />
           </div>
         ) : (
@@ -579,6 +600,7 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
                   fontFamily: bodyFont,
                   fontSize: `${readingConfig.fontSize}px`,
                   lineHeight: readingConfig.lineHeight,
+                  textAlign: readingSurface ? readingConfig.readingModeAlign : 'left',
                 }}
               >
                 {paragraphs.map((paragraph, index) => (
@@ -639,7 +661,6 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
       <ImageLightbox src={lightboxSrc} onClose={closeLightbox} />
 
       <motion.div
-        data-cursor-invert="off"
         style={{ ...scopedThemeStyle, maxWidth: cardMaxWidth[readingConfig.maxWidth], margin: '0 auto', width: '100%' }}
         layout
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
@@ -685,7 +706,7 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
             </div>
 
             <div className="flex items-center gap-2">
-              <FocusToggleButton active={focusMode} onClick={() => setFocusMode((current) => !current)} />
+              <ReadingModeSwitch active={readingMode} onToggle={() => setReadingMode((current) => !current)} />
 
               <motion.button
                 type="button"
@@ -729,7 +750,7 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
             </section>
           ) : null}
 
-          {renderBody(false)}
+          {renderBody(false, false)}
 
           <section className="mt-6 border-t border-border-subtle pt-4">
             <div className="mb-4 flex flex-wrap items-center gap-5">
@@ -758,66 +779,74 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
       </motion.div>
 
       <AnimatePresence>
-        {focusMode
+        {readingMode
           ? createPortal(
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 z-[9999] p-2 sm:p-4 md:p-6"
+                className="fixed inset-0 z-[9000]"
               >
-                <div className="absolute inset-0 bg-black/65 backdrop-blur-sm" onClick={() => setFocusMode(false)} />
                 <motion.div
-                  initial={{ opacity: 0, y: 24, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 24, scale: 0.98 }}
-                  transition={{ type: 'spring', stiffness: 180, damping: 24 }}
-                  className="relative z-10 mx-auto h-full max-w-6xl overflow-hidden rounded-3xl border shadow-2xl"
-                  style={{ ...scopedThemeStyle, background: 'var(--card-bg)', borderColor: 'var(--card-border)', boxShadow: 'var(--card-shadow)' }}
-                  data-cursor-invert="off"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 20 }}
+                  transition={{ duration: 0.28, ease: 'easeOut' }}
+                  className="relative h-full overflow-y-auto"
+                  style={{ ...scopedThemeStyle, background: 'var(--bg-base)' }}
                 >
-                  <div
-                    className="h-full overflow-y-auto px-4 py-5 sm:px-6 sm:py-6"
+                  <section className="sticky top-0 z-20 flex justify-end px-4 py-4 sm:px-6"
+                    style={{ background: 'linear-gradient(to bottom, var(--bg-base), transparent)' }}
                   >
-                    <section
-                      className="sticky top-0 z-20 mb-6 flex items-center justify-end gap-2 rounded-2xl border px-2 py-2 backdrop-blur-md"
-                      style={{ background: 'var(--source-btn-bg)', borderColor: 'var(--source-btn-border)' }}
+                    <div className="flex items-center gap-3 rounded-full border px-2 py-2"
+                      style={{ borderColor: 'var(--source-btn-border)', background: 'var(--source-btn-bg)' }}
                     >
-                      <ReadingSettingsButton config={readingConfig} onChange={setReadingConfig} />
-                      <FocusToggleButton active={focusMode} onClick={() => setFocusMode(false)} compact />
-                      <motion.button
-                        type="button"
-                        data-cursor="pointer"
-                        onClick={() => setFocusMode(false)}
-                        className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-mono text-[11px] text-text-muted"
-                        style={{ background: 'var(--source-btn-bg)', borderColor: 'var(--source-btn-border)' }}
-                        whileHover={{ scale: 1.03 }}
-                        whileTap={{ scale: 0.96 }}
-                      >
-                        <X className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Close</span>
-                      </motion.button>
-                    </section>
-
-                    <div className="mx-auto w-full" style={{ maxWidth: cardMaxWidth[readingConfig.maxWidth] }}>
-                      {article.title ? (
-                        <h2
-                          className="mb-6 text-[32px] font-bold leading-[1.2] tracking-[-0.02em] text-text-primary"
-                          style={{ fontFamily: themePalette.headingFont }}
-                        >
-                          {article.title}
-                        </h2>
-                      ) : null}
-
-                      {article.coverImage ? (
-                        <section className="mb-6 overflow-hidden rounded-2xl border border-border-subtle">
-                          <ClickableImage src={article.coverImage} alt="Cover" className="w-full object-cover" onOpen={openLightbox} />
-                        </section>
-                      ) : null}
-
-                      {renderBody(true)}
+                      <ReadingSettingsButton
+                        config={readingConfig}
+                        onChange={setReadingConfig}
+                        showReadingModeControls
+                        compactLabel
+                      />
+                      <ReadingModeSwitch active={readingMode} onToggle={() => setReadingMode(false)} showLabel={false} />
                     </div>
-                  </div>
+                  </section>
+
+                  <motion.article
+                    layout
+                    initial={{ opacity: 0, y: 18 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    transition={{ duration: 0.25 }}
+                    className="mx-auto pb-16"
+                    style={{
+                      width: `min(${readingConfig.readingModeWidth}vw, 1480px)`,
+                      maxWidth: 'calc(100vw - 1.5rem)',
+                    }}
+                  >
+                    {article.title ? (
+                      <h2
+                        className="mb-4 text-[34px] font-bold leading-[1.2] tracking-[-0.02em] text-text-primary"
+                        style={{ fontFamily: themePalette.headingFont, textAlign: readingConfig.readingModeAlign }}
+                      >
+                        {article.title}
+                      </h2>
+                    ) : null}
+
+                    <p
+                      className="mb-6 font-inter text-xs text-text-muted"
+                      style={{ textAlign: readingConfig.readingModeAlign }}
+                    >
+                      {article.authorName} · {article.authorHandle} · {publishedAt}
+                    </p>
+
+                    {article.coverImage ? (
+                      <section className="mb-6 overflow-hidden rounded-2xl">
+                        <ClickableImage src={article.coverImage} alt="Cover" className="w-full object-cover" onOpen={openLightbox} />
+                      </section>
+                    ) : null}
+
+                    {renderBody(true, true)}
+                  </motion.article>
                 </motion.div>
               </motion.div>,
               document.body,

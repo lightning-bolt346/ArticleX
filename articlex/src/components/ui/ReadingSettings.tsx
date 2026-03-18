@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { Minus, Plus, Settings2, X } from 'lucide-react'
+import { AlignCenter, AlignJustify, AlignLeft, Minus, Plus, Settings2, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
@@ -34,9 +34,16 @@ const WIDTH_OPTIONS: { value: ReadingConfig['maxWidth']; label: string }[] = [
 interface ReadingSettingsProps {
   config: ReadingConfig
   onChange: (config: ReadingConfig) => void
+  showReadingModeControls?: boolean
+  compactLabel?: boolean
 }
 
-export const ReadingSettingsButton = ({ config, onChange }: ReadingSettingsProps) => {
+export const ReadingSettingsButton = ({
+  config,
+  onChange,
+  showReadingModeControls = false,
+  compactLabel = false,
+}: ReadingSettingsProps) => {
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
@@ -44,15 +51,6 @@ export const ReadingSettingsButton = ({ config, onChange }: ReadingSettingsProps
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [open])
-
-  useEffect(() => {
-    if (open) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = ''
-    }
-    return () => { document.body.style.overflow = '' }
   }, [open])
 
   const update = (partial: Partial<ReadingConfig>) => {
@@ -151,6 +149,69 @@ export const ReadingSettingsButton = ({ config, onChange }: ReadingSettingsProps
                 </div>
               </div>
 
+              {showReadingModeControls ? (
+                <>
+                  <div>
+                    <label className="mb-2 block font-mono text-[10px] uppercase tracking-wider text-text-muted">
+                      Reading Mode Width ({config.readingModeWidth}vw)
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => update({ readingModeWidth: Math.max(45, config.readingModeWidth - 1) })}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-border-subtle text-text-muted hover:text-text-primary"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </button>
+                      <input
+                        type="range"
+                        min={45}
+                        max={100}
+                        value={config.readingModeWidth}
+                        onChange={(e) => update({ readingModeWidth: +e.target.value })}
+                        className="h-1 flex-1 cursor-pointer appearance-none rounded-full bg-border-subtle accent-accent-violet"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => update({ readingModeWidth: Math.min(100, config.readingModeWidth + 1) })}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-border-subtle text-text-muted hover:text-text-primary"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block font-mono text-[10px] uppercase tracking-wider text-text-muted">Text Alignment</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { value: 'left', label: 'Left', icon: AlignLeft },
+                        { value: 'center', label: 'Center', icon: AlignCenter },
+                        { value: 'justify', label: 'Justify', icon: AlignJustify },
+                      ].map((opt) => {
+                        const Icon = opt.icon
+                        const isActive = config.readingModeAlign === opt.value
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => update({ readingModeAlign: opt.value as ReadingConfig['readingModeAlign'] })}
+                            className={`rounded-lg border px-2 py-2 text-center text-[11px] transition-colors ${
+                              isActive
+                                ? 'border-accent-violet bg-accent-violet/10 text-accent-violet'
+                                : 'border-border-subtle text-text-muted hover:text-text-primary'
+                            }`}
+                          >
+                            <Icon className="mx-auto mb-1 h-4 w-4" />
+                            {opt.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </>
+              ) : null}
+
               <button
                 type="button"
                 onClick={() => { onChange(READING_DEFAULTS); saveReadingConfig(READING_DEFAULTS) }}
@@ -177,7 +238,7 @@ export const ReadingSettingsButton = ({ config, onChange }: ReadingSettingsProps
         data-export-exclude
       >
         <Settings2 className="h-3 w-3" />
-        <span className="hidden sm:inline">Reading</span>
+        <span className={compactLabel ? 'hidden' : 'hidden sm:inline'}>Reading</span>
       </motion.button>
       {createPortal(modal, document.body)}
     </>

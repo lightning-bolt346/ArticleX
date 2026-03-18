@@ -3,6 +3,8 @@ export interface ReadingConfig {
   lineHeight: number
   fontFamily: 'inter' | 'georgia' | 'mono' | 'system' | 'literata'
   maxWidth: 'narrow' | 'normal' | 'wide'
+  readingModeWidth: number
+  readingModeAlign: 'left' | 'center' | 'justify'
   theme: ReadingTheme
 }
 
@@ -60,6 +62,8 @@ export const READING_DEFAULTS: ReadingConfig = {
   lineHeight: 1.85,
   fontFamily: 'inter',
   maxWidth: 'normal',
+  readingModeWidth: 72,
+  readingModeAlign: 'left',
   theme: 'dynamic-dim',
 }
 
