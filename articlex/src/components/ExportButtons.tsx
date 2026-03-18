@@ -1,11 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { CheckCircle2, Code2, FileImage, FileText, FileType, Globe } from 'lucide-react'
 import { useRef, useState } from 'react'
-import { generateDOCX } from '../lib/generators/docx'
-import { generateHTML } from '../lib/generators/html'
-import { generateMarkdown } from '../lib/generators/markdown'
-import { generatePDF } from '../lib/generators/pdf'
-import { generatePNG } from '../lib/generators/png'
 import type { ArticleObject } from '../types/article'
 
 type ExportFormat = 'html' | 'md' | 'docx' | 'pdf' | 'png'
@@ -88,12 +83,31 @@ export const ExportButtons = ({ article, articleRef, onExport }: ExportButtonsPr
 
     try {
       switch (format) {
-        case 'html': generateHTML(article); break
-        case 'md': generateMarkdown(article); break
-        case 'docx': await generateDOCX(article); break
-        case 'pdf': await generatePDF(article); break
+        case 'html': {
+          const { generateHTML } = await import('../lib/generators/html')
+          generateHTML(article)
+          break
+        }
+        case 'md': {
+          const { generateMarkdown } = await import('../lib/generators/markdown')
+          generateMarkdown(article)
+          break
+        }
+        case 'docx': {
+          const { generateDOCX } = await import('../lib/generators/docx')
+          await generateDOCX(article)
+          break
+        }
+        case 'pdf': {
+          const { generatePDF } = await import('../lib/generators/pdf')
+          await generatePDF(article)
+          break
+        }
         case 'png':
-          if (articleRef.current) await generatePNG(articleRef.current, `${handle}-article`)
+          if (articleRef.current) {
+            const { generatePNG } = await import('../lib/generators/png')
+            await generatePNG(articleRef.current, `${handle}-article`)
+          }
           break
       }
 

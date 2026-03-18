@@ -293,7 +293,7 @@ export const generateDOCX = async (article: ArticleObject): Promise<void> => {
                 children: [
                   new TextRun({ text: 'Exported from ', size: 14, color: '999999', font: 'Calibri', italics: true }),
                   new TextRun({ text: 'ArticleX', size: 14, color: '7C3AED', font: 'Calibri', bold: true }),
-                  new TextRun({ text: ' · Free & Open · Page ', size: 14, color: '999999', font: 'Calibri', italics: true }),
+                  new TextRun({ text: ' ✦ Free & Open · Page ', size: 14, color: '999999', font: 'Calibri', italics: true }),
                   new TextRun({ children: [PageNumber.CURRENT], size: 14, color: '999999', font: 'Calibri' }),
                 ],
               }),
@@ -312,6 +312,11 @@ export const generateDOCX = async (article: ArticleObject): Promise<void> => {
           }),
         },
         children: [
+          new Paragraph({
+            children: [new TextRun({ text: 'AX', size: 18, color: 'DDDDDD', bold: true, font: 'Calibri' })],
+            alignment: AlignmentType.RIGHT,
+            spacing: { after: 80 },
+          }),
           ...(article.title
             ? [
                 new Paragraph({

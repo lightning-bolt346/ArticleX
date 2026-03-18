@@ -160,9 +160,15 @@ export const generatePDF = async (article: ArticleObject): Promise<void> => {
     }
   }
 
-  const branding = `ArticleX · Free & Open · ${new Date().toLocaleDateString()}`
+  const branding = `ArticleX ✦ Free & Open · ${new Date().toLocaleDateString()}`
 
   const docDefinition: TDocumentDefinitions = {
+    watermark: {
+      text: 'AX',
+      color: '#bdbdbd',
+      opacity: 0.05,
+      bold: true,
+    },
     content: [
       ...(article.title
         ? [{
