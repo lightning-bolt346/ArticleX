@@ -11,6 +11,7 @@ import {
   Globe,
   ImageIcon,
   Maximize2,
+  Minimize2,
   X,
 } from 'lucide-react'
 import { ExportButtons } from './ExportButtons'
@@ -40,6 +41,46 @@ type ExportFormat = 'html' | 'md' | 'docx' | 'pdf' | 'png'
 interface ArticlePreviewProps {
   article: ArticleObject
   onExport: (format: string) => void
+}
+
+function FocusToggleButton({
+  active,
+  onClick,
+  compact = false,
+}: {
+  active: boolean
+  onClick: () => void
+  compact?: boolean
+}) {
+  return (
+    <motion.button
+      type="button"
+      data-cursor="pointer"
+      onClick={onClick}
+      className={`inline-flex items-center rounded-full border font-mono text-[11px] text-text-muted ${
+        compact ? 'gap-1.5 px-2.5 py-1.5' : 'gap-2 px-3 py-1.5'
+      }`}
+      style={{ background: 'var(--source-btn-bg)', borderColor: 'var(--source-btn-border)' }}
+      whileHover={{ scale: 1.03 }}
+      whileTap={{ scale: 0.96 }}
+      data-export-exclude
+      aria-label={active ? 'Exit focus mode' : 'Enter focus mode'}
+    >
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.span
+          key={active ? 'exit' : 'enter'}
+          initial={{ rotate: -20, opacity: 0, scale: 0.75 }}
+          animate={{ rotate: 0, opacity: 1, scale: 1 }}
+          exit={{ rotate: 20, opacity: 0, scale: 0.75 }}
+          transition={{ duration: 0.18 }}
+          className="inline-flex items-center gap-2"
+        >
+          {active ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+          {!compact ? <span>{active ? 'Exit Focus' : 'Focus Mode'}</span> : null}
+        </motion.span>
+      </AnimatePresence>
+    </motion.button>
+  )
 }
 
 interface TextSegment {
@@ -164,12 +205,16 @@ function RichContentRenderer({
   onImageOpen,
   themePalette,
   bodyFont,
+  bodyFontSize,
+  bodyLineHeight,
 }: {
   blocks: ContentBlock[]
   tweetId: string
   onImageOpen: (src: string) => void
   themePalette: ReaderThemePalette
   bodyFont: string
+  bodyFontSize: number
+  bodyLineHeight: number
 }) {
   const [loadedImages, setLoadedImages] = useState<Record<number, boolean>>({})
   const linkDecoration = themePalette.id === 'sepia-comfort' ? 'dotted' : 'solid'
@@ -193,8 +238,8 @@ function RichContentRenderer({
               {group.items.map(({ block, index }) => (
                 <li
                   key={`${tweetId}-li-${index}`}
-                  className="text-[15px] leading-[1.85] marker:text-accent-violet"
-                  style={{ color: 'var(--body-text)', fontFamily: bodyFont }}
+                  className="marker:text-accent-violet"
+                  style={{ color: 'var(--body-text)', fontFamily: bodyFont, fontSize: `${bodyFontSize}px`, lineHeight: bodyLineHeight }}
                 >
                   {renderAnnotatedText(block.text, block.annotations, linkDecoration)}
                 </li>
@@ -228,8 +273,14 @@ function RichContentRenderer({
               return (
                 <blockquote
                   key={`${tweetId}-bq-${index}`}
-                  className="my-4 rounded-r-xl border-l-[3px] py-2 pr-4 pl-5 text-[15px] italic leading-[1.85] text-text-muted"
-                  style={{ background: 'var(--reader-quote-bg)', borderLeftColor: 'var(--reader-quote-border)', fontFamily: bodyFont }}
+                  className="my-4 rounded-r-xl border-l-[3px] py-2 pr-4 pl-5 italic text-text-muted"
+                  style={{
+                    background: 'var(--reader-quote-bg)',
+                    borderLeftColor: 'var(--reader-quote-border)',
+                    fontFamily: bodyFont,
+                    fontSize: `${bodyFontSize}px`,
+                    lineHeight: bodyLineHeight,
+                  }}
                 >
                   {renderAnnotatedText(block.text, block.annotations, linkDecoration)}
                 </blockquote>
@@ -262,8 +313,8 @@ function RichContentRenderer({
               return (
                 <p
                   key={`${tweetId}-p-${index}`}
-                  className="mb-[1em] text-[15px] leading-[1.85]"
-                  style={{ color: 'var(--body-text)', fontFamily: bodyFont }}
+                  className="mb-[1em]"
+                  style={{ color: 'var(--body-text)', fontFamily: bodyFont, fontSize: `${bodyFontSize}px`, lineHeight: bodyLineHeight }}
                 >
                   {renderAnnotatedText(block.text, block.annotations, linkDecoration)}
                 </p>
@@ -509,6 +560,8 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
               onImageOpen={openLightbox}
               themePalette={themePalette}
               bodyFont={bodyFont}
+              bodyFontSize={readingConfig.fontSize}
+              bodyLineHeight={readingConfig.lineHeight}
             />
           </div>
         ) : (
@@ -586,6 +639,7 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
       <ImageLightbox src={lightboxSrc} onClose={closeLightbox} />
 
       <motion.div
+        data-cursor-invert="off"
         style={{ ...scopedThemeStyle, maxWidth: cardMaxWidth[readingConfig.maxWidth], margin: '0 auto', width: '100%' }}
         layout
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
@@ -631,18 +685,7 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
             </div>
 
             <div className="flex items-center gap-2">
-              <motion.button
-                type="button"
-                data-cursor="pointer"
-                onClick={() => setFocusMode(true)}
-                className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-mono text-[11px] text-text-muted"
-                style={{ background: 'var(--source-btn-bg)', borderColor: 'var(--source-btn-border)' }}
-                whileHover={{ scale: 1.03 }}
-                data-export-exclude
-              >
-                <Maximize2 className="h-3 w-3" />
-                <span className="hidden sm:inline">Focus</span>
-              </motion.button>
+              <FocusToggleButton active={focusMode} onClick={() => setFocusMode((current) => !current)} />
 
               <motion.button
                 type="button"
@@ -721,53 +764,59 @@ export const ArticlePreview = ({ article, onExport }: ArticlePreviewProps) => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 z-[9999]"
+                className="fixed inset-0 z-[9999] p-2 sm:p-4 md:p-6"
               >
-                <div className="absolute inset-0 bg-black/70" onClick={() => setFocusMode(false)} />
+                <div className="absolute inset-0 bg-black/65 backdrop-blur-sm" onClick={() => setFocusMode(false)} />
                 <motion.div
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 12 }}
-                  className="relative z-10 h-full overflow-y-auto"
-                  style={{ background: themePalette.colors.bgSurface }}
+                  initial={{ opacity: 0, y: 24, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 24, scale: 0.98 }}
+                  transition={{ type: 'spring', stiffness: 180, damping: 24 }}
+                  className="relative z-10 mx-auto h-full max-w-6xl overflow-hidden rounded-3xl border shadow-2xl"
+                  style={{ ...scopedThemeStyle, background: 'var(--card-bg)', borderColor: 'var(--card-border)', boxShadow: 'var(--card-shadow)' }}
+                  data-cursor-invert="off"
                 >
                   <div
-                    className="mx-auto w-full px-4 py-6"
-                    style={{ ...scopedThemeStyle, maxWidth: cardMaxWidth[readingConfig.maxWidth] }}
+                    className="h-full overflow-y-auto px-4 py-5 sm:px-6 sm:py-6"
                   >
                     <section
-                      className="sticky top-3 z-20 mb-6 flex items-center justify-end gap-2 rounded-full border px-2 py-2 backdrop-blur-md"
+                      className="sticky top-0 z-20 mb-6 flex items-center justify-end gap-2 rounded-2xl border px-2 py-2 backdrop-blur-md"
                       style={{ background: 'var(--source-btn-bg)', borderColor: 'var(--source-btn-border)' }}
                     >
                       <ReadingSettingsButton config={readingConfig} onChange={setReadingConfig} />
+                      <FocusToggleButton active={focusMode} onClick={() => setFocusMode(false)} compact />
                       <motion.button
                         type="button"
+                        data-cursor="pointer"
                         onClick={() => setFocusMode(false)}
                         className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-mono text-[11px] text-text-muted"
                         style={{ background: 'var(--source-btn-bg)', borderColor: 'var(--source-btn-border)' }}
                         whileHover={{ scale: 1.03 }}
+                        whileTap={{ scale: 0.96 }}
                       >
-                        <X className="h-3 w-3" />
+                        <X className="h-3.5 w-3.5" />
                         <span className="hidden sm:inline">Close</span>
                       </motion.button>
                     </section>
 
-                    {article.title ? (
-                      <h2
-                        className="mb-6 text-[32px] font-bold leading-[1.2] tracking-[-0.02em] text-text-primary"
-                        style={{ fontFamily: themePalette.headingFont }}
-                      >
-                        {article.title}
-                      </h2>
-                    ) : null}
+                    <div className="mx-auto w-full" style={{ maxWidth: cardMaxWidth[readingConfig.maxWidth] }}>
+                      {article.title ? (
+                        <h2
+                          className="mb-6 text-[32px] font-bold leading-[1.2] tracking-[-0.02em] text-text-primary"
+                          style={{ fontFamily: themePalette.headingFont }}
+                        >
+                          {article.title}
+                        </h2>
+                      ) : null}
 
-                    {article.coverImage ? (
-                      <section className="mb-6 overflow-hidden rounded-2xl border border-border-subtle">
-                        <ClickableImage src={article.coverImage} alt="Cover" className="w-full object-cover" onOpen={openLightbox} />
-                      </section>
-                    ) : null}
+                      {article.coverImage ? (
+                        <section className="mb-6 overflow-hidden rounded-2xl border border-border-subtle">
+                          <ClickableImage src={article.coverImage} alt="Cover" className="w-full object-cover" onOpen={openLightbox} />
+                        </section>
+                      ) : null}
 
-                    {renderBody(true)}
+                      {renderBody(true)}
+                    </div>
                   </div>
                 </motion.div>
               </motion.div>,

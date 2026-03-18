@@ -14,7 +14,7 @@ export const ThemeToggle = ({ theme, onToggle }: ThemeToggleProps) => {
       type="button"
       data-cursor="pointer"
       onClick={onToggle}
-      className="fixed right-5 top-5 z-50 flex h-10 w-10 items-center justify-center rounded-full border transition-colors"
+      className="fixed right-5 top-5 z-50 hidden h-10 w-10 items-center justify-center rounded-full border transition-colors lg:flex"
       style={{
         background: 'var(--glass-bg)',
         borderColor: 'var(--glass-border)',

@@ -97,6 +97,13 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+@media (pointer: fine) and (min-width: 1024px) {
+  body.custom-cursor-enabled,
+  body.custom-cursor-enabled * {
+    cursor: none !important;
+  }
+}
+
 body::before {
   content: '';
   position: fixed;
