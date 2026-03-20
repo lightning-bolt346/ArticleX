@@ -61,6 +61,11 @@ export interface Collection {
   id: string
   name: string
   description: string | null
+  tags: string[]
+  contactEmail: string | null
+  editable: boolean
+  isPublic: boolean
+  userId: string | null
   createdAt: string
   viewCount: number
   itemCount: number
@@ -94,6 +99,11 @@ function readLocalStore(): Record<string, Collection> {
 export async function createCollection(params: {
   name: string
   description?: string
+  tags?: string[]
+  contactEmail?: string
+  editable?: boolean
+  isPublic?: boolean
+  userId?: string
   items: CollectionItem[]
 }): Promise<{ id: string } | { error: string }> {
   const { nanoid } = await import('nanoid')
@@ -105,6 +115,11 @@ export async function createCollection(params: {
       id,
       name: params.name,
       description: params.description ?? null,
+      tags: params.tags ?? [],
+      contact_email: params.contactEmail ?? null,
+      editable: params.editable ?? false,
+      is_public: params.isPublic ?? true,
+      user_id: params.userId ?? null,
       created_at: new Date().toISOString(),
       view_count: 0,
     })
@@ -136,6 +151,11 @@ export async function createCollection(params: {
     id,
     name: params.name,
     description: params.description ?? null,
+    tags: params.tags ?? [],
+    contactEmail: params.contactEmail ?? null,
+    editable: params.editable ?? false,
+    isPublic: params.isPublic ?? true,
+    userId: params.userId ?? null,
     createdAt: new Date().toISOString(),
     viewCount: 0,
     itemCount: params.items.length,
@@ -176,6 +196,11 @@ export async function getCollection(id: string): Promise<Collection | null> {
       id: c.id as string,
       name: c.name as string,
       description: c.description as string | null,
+      tags: (c.tags as string[]) ?? [],
+      contactEmail: (c.contact_email as string) ?? null,
+      editable: (c.editable as boolean) ?? false,
+      isPublic: (c.is_public as boolean) ?? true,
+      userId: (c.user_id as string) ?? null,
       createdAt: c.created_at as string,
       viewCount: c.view_count as number,
       itemCount: items.length,
@@ -212,7 +237,8 @@ export async function getTopCollections(limit = 20): Promise<Collection[]> {
   if (supabase) {
     const { data, error } = await supabase
       .from('collections')
-      .select('id, name, description, created_at, view_count')
+      .select('id, name, description, tags, contact_email, editable, is_public, user_id, created_at, view_count')
+      .eq('is_public', true)
       .order('view_count', { ascending: false })
       .limit(limit)
 
@@ -222,6 +248,11 @@ export async function getTopCollections(limit = 20): Promise<Collection[]> {
       id: c.id as string,
       name: c.name as string,
       description: c.description as string | null,
+      tags: (c.tags as string[]) ?? [],
+      contactEmail: (c.contact_email as string) ?? null,
+      editable: (c.editable as boolean) ?? false,
+      isPublic: (c.is_public as boolean) ?? true,
+      userId: (c.user_id as string) ?? null,
       createdAt: c.created_at as string,
       viewCount: c.view_count as number,
       itemCount: 0,
@@ -231,6 +262,87 @@ export async function getTopCollections(limit = 20): Promise<Collection[]> {
 
   const store = readLocalStore()
   return Object.values(store)
+    .filter((c) => c.isPublic)
     .sort((a, b) => b.viewCount - a.viewCount)
     .slice(0, limit)
+}
+
+export async function updateCollectionItems(
+  collectionId: string,
+  items: CollectionItem[],
+): Promise<{ ok: boolean } | { error: string }> {
+  const supabase = getSupabaseClient()
+
+  if (supabase) {
+    const { error: delErr } = await supabase
+      .from('collection_items')
+      .delete()
+      .eq('collection_id', collectionId)
+    if (delErr) return { error: delErr.message }
+
+    if (items.length > 0) {
+      const { error } = await supabase.from('collection_items').insert(
+        items.map((item) => ({
+          collection_id: collectionId,
+          tweet_id: item.tweetId,
+          tweet_url: item.tweetUrl,
+          author_name: item.authorName,
+          author_handle: item.authorHandle,
+          author_avatar: item.authorAvatar,
+          title: item.title,
+          snippet: item.snippet,
+          cover_image: item.coverImage,
+          added_at: item.addedAt,
+        })),
+      )
+      if (error) return { error: error.message }
+    }
+
+    return { ok: true }
+  }
+
+  try {
+    const store = readLocalStore()
+    if (!store[collectionId]) return { error: 'Not found' }
+    store[collectionId].items = items
+    store[collectionId].itemCount = items.length
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(store))
+    return { ok: true }
+  } catch {
+    return { error: 'Failed to update' }
+  }
+}
+
+export async function getUserCollections(userId: string): Promise<Collection[]> {
+  const supabase = getSupabaseClient()
+
+  if (supabase) {
+    const { data, error } = await supabase
+      .from('collections')
+      .select('id, name, description, tags, contact_email, editable, is_public, user_id, created_at, view_count')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+
+    if (error || !data) return []
+
+    return (data as Record<string, unknown>[]).map((c) => ({
+      id: c.id as string,
+      name: c.name as string,
+      description: c.description as string | null,
+      tags: (c.tags as string[]) ?? [],
+      contactEmail: (c.contact_email as string) ?? null,
+      editable: (c.editable as boolean) ?? false,
+      isPublic: (c.is_public as boolean) ?? true,
+      userId: (c.user_id as string) ?? null,
+      createdAt: c.created_at as string,
+      viewCount: c.view_count as number,
+      itemCount: 0,
+      items: [],
+    }))
+  }
+
+  const store = readLocalStore()
+  return Object.values(store)
+    .filter((c) => c.userId === userId)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 }
