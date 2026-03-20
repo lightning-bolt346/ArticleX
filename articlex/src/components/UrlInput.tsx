@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 interface UrlInputProps {
   onSuccess: (url: string) => void | Promise<void>
@@ -31,14 +31,8 @@ export const UrlInput = ({
   isLoading = false,
   prefillUrl,
 }: UrlInputProps) => {
-  const [url, setUrl] = useState('')
+  const [url, setUrl] = useState(prefillUrl ?? '')
   const [isFocused, setIsFocused] = useState(false)
-
-  useEffect(() => {
-    if (prefillUrl) {
-      setUrl(prefillUrl)
-    }
-  }, [prefillUrl])
 
   const handleSubmit = async () => {
     if (isLoading) {

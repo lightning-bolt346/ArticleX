@@ -22,29 +22,18 @@ import {
 import { useCallback, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AuthModal } from '../components/AuthModal'
-import { getCachedArticle, setCachedArticle } from '../lib/article-cache'
 import {
   articleToCollectionItem,
   createCollection,
   getCollection,
   type CollectionItem,
 } from '../lib/collections'
-import { fetchTweet } from '../lib/fxtwitter'
-import { normalizeTweet } from '../lib/normalizer'
+import { loadArticleFromUrl } from '../lib/article-service'
 import { COLLECTION_TAGS } from '../lib/tags'
 import { useAuth } from '../hooks/useAuth'
+import { extractTweetId } from '../lib/tweet'
 
-const TWEET_ID_REGEX = /(?:x\.com|twitter\.com)\/[^/]+\/status\/(\d+)/
 const COLLECTION_ID_REGEX = /collections\/([a-zA-Z0-9_-]{4,10})/
-
-function extractTweetId(url: string): string | null {
-  const match = url
-    .trim()
-    .replace('mobile.x.com', 'x.com')
-    .replace('/article/', '/status/')
-    .match(TWEET_ID_REGEX)
-  return match?.[1] ?? null
-}
 
 const cardSpring = { type: 'spring' as const, stiffness: 100, damping: 20 }
 
@@ -92,23 +81,7 @@ export function CollectionCreatePage() {
   const fetchArticle = useCallback(async (url: string) => {
     const tweetId = extractTweetId(url)
     if (!tweetId) throw new Error('Invalid URL')
-    let article = getCachedArticle(tweetId)
-    if (!article) {
-      let payload: Record<string, unknown>
-      try {
-        const res = await fetch('/api/fetch-tweet', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url }),
-        })
-        if (!res.ok) throw new Error()
-        payload = (await res.json()) as Record<string, unknown>
-      } catch {
-        payload = await fetchTweet(url)
-      }
-      article = normalizeTweet(payload)
-      setCachedArticle(article.tweetId, article)
-    }
+    const { article } = await loadArticleFromUrl(url, { trackHistory: false })
     return article
   }, [])
 

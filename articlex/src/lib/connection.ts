@@ -20,15 +20,13 @@ export async function checkSupabaseHealth(): Promise<boolean> {
   if (!isSupabaseConfigured()) return false
 
   try {
-    const res = await fetch(`${env.supabaseUrl}/rest/v1/`, {
-      method: 'HEAD',
+    const res = await fetch(`${env.supabaseUrl}/auth/v1/settings`, {
       headers: {
         'apikey': env.supabaseAnonKey!,
-        'Authorization': `Bearer ${env.supabaseAnonKey!}`,
       },
       signal: AbortSignal.timeout(5000),
     })
-    return res.ok || res.status === 200 || res.status === 404
+    return res.ok
   } catch {
     return false
   }

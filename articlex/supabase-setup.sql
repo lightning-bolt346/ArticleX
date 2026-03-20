@@ -21,8 +21,12 @@
 -- DROP POLICY IF EXISTS "items_select" ON collection_items;
 -- DROP POLICY IF EXISTS "items_insert" ON collection_items;
 -- DROP POLICY IF EXISTS "items_delete" ON collection_items;
+-- DROP POLICY IF EXISTS "anyone_read_articles" ON articles;
+-- DROP POLICY IF EXISTS "anyone_write_articles" ON articles;
+-- DROP POLICY IF EXISTS "anyone_update_articles" ON articles;
 -- DROP TABLE IF EXISTS collection_items;
 -- DROP TABLE IF EXISTS collections;
+-- DROP TABLE IF EXISTS articles;
 -- DROP TABLE IF EXISTS tweet_cache;
 
 
@@ -61,6 +65,22 @@ CREATE TABLE IF NOT EXISTS tweet_cache (
   fetched_at TIMESTAMPTZ DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS articles (
+  tweet_id      TEXT PRIMARY KEY,
+  tweet_url     TEXT NOT NULL,
+  author_name   TEXT NOT NULL DEFAULT '',
+  author_handle TEXT NOT NULL DEFAULT '',
+  author_avatar TEXT NOT NULL DEFAULT '',
+  published_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  title         TEXT,
+  snippet       TEXT NOT NULL DEFAULT '',
+  cover_image   TEXT,
+  word_count    INTEGER NOT NULL DEFAULT 0,
+  reading_time  INTEGER NOT NULL DEFAULT 0,
+  payload       JSONB NOT NULL,
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 
 -- ─── STEP 2: INDEXES ───────────────────────────────────────
 
@@ -69,6 +89,7 @@ CREATE INDEX IF NOT EXISTS idx_coll_views       ON collections(view_count DESC);
 CREATE INDEX IF NOT EXISTS idx_coll_user        ON collections(user_id);
 CREATE INDEX IF NOT EXISTS idx_coll_public      ON collections(is_public);
 CREATE INDEX IF NOT EXISTS idx_cache_fetched    ON tweet_cache(fetched_at);
+CREATE INDEX IF NOT EXISTS idx_articles_updated ON articles(updated_at DESC);
 
 
 -- ─── STEP 3: ENABLE ROW LEVEL SECURITY ─────────────────────
@@ -76,6 +97,7 @@ CREATE INDEX IF NOT EXISTS idx_cache_fetched    ON tweet_cache(fetched_at);
 ALTER TABLE collections ENABLE ROW LEVEL SECURITY;
 ALTER TABLE collection_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tweet_cache ENABLE ROW LEVEL SECURITY;
+ALTER TABLE articles ENABLE ROW LEVEL SECURITY;
 
 
 -- ─── STEP 4: RLS POLICIES ──────────────────────────────────
@@ -128,6 +150,11 @@ CREATE POLICY "anyone_read_cache"  ON tweet_cache FOR SELECT USING (true);
 CREATE POLICY "anyone_write_cache" ON tweet_cache FOR INSERT WITH CHECK (true);
 CREATE POLICY "anyone_update_cache" ON tweet_cache FOR UPDATE USING (true);
 
+-- Saved articles: fully open because tweet/article content is public
+CREATE POLICY "anyone_read_articles" ON articles FOR SELECT USING (true);
+CREATE POLICY "anyone_write_articles" ON articles FOR INSERT WITH CHECK (true);
+CREATE POLICY "anyone_update_articles" ON articles FOR UPDATE USING (true);
+
 
 -- ─── STEP 5: VIEW COUNTER FUNCTION ─────────────────────────
 -- SECURITY DEFINER lets this bypass RLS (needed for anonymous view counting)
@@ -143,3 +170,8 @@ $$;
 
 -- ─── DONE! ──────────────────────────────────────────────────
 -- Your tables are ready. The app will connect automatically.
+-- For production on Vercel, also add:
+--   VITE_SUPABASE_URL
+--   VITE_SUPABASE_ANON_KEY
+--   SUPABASE_SERVICE_ROLE_KEY
+-- Then redeploy the site so Vercel rebuilds with the new values.

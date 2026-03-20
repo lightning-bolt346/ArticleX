@@ -55,8 +55,19 @@ function SkeletonCards() {
   )
 }
 
-function CollectionArticleCard({ item, index }: { item: CollectionItem; index: number }) {
+function CollectionArticleCard({
+  item,
+  index,
+  collectionId,
+  collectionName,
+}: {
+  item: CollectionItem
+  index: number
+  collectionId: string
+  collectionName: string
+}) {
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
+  const previewHref = `/posts/${item.tweetId}?collection=${encodeURIComponent(collectionId)}`
 
   return (
     <>
@@ -85,8 +96,25 @@ function CollectionArticleCard({ item, index }: { item: CollectionItem; index: n
         </div>
         {item.title && <p className="mt-3 line-clamp-2 font-jakarta text-[17px] font-bold leading-snug text-text-primary">{item.title}</p>}
         <p className="mt-2 line-clamp-3 font-inter text-[13px] leading-relaxed text-text-muted">{item.snippet}</p>
-        <div className="mt-3">
-          <a href={item.tweetUrl} target="_blank" rel="noopener noreferrer" data-cursor="pointer" className="inline-flex items-center gap-1 font-mono text-[11px] text-text-dim transition-colors hover:text-accent-cyan" onClick={(e) => e.stopPropagation()}>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <Link
+            to={previewHref}
+            state={{ sourceUrl: item.tweetUrl, fromCollectionName: collectionName }}
+            data-cursor="pointer"
+            className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-text-primary transition-colors hover:text-accent-cyan"
+            style={{ background: 'var(--source-btn-bg)', borderColor: 'var(--source-btn-border)' }}
+          >
+            <Eye className="h-3.5 w-3.5" />
+            Preview
+          </Link>
+          <a
+            href={item.tweetUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-cursor="pointer"
+            className="inline-flex items-center gap-1 font-mono text-[11px] text-text-dim transition-colors hover:text-accent-cyan"
+            onClick={(e) => e.stopPropagation()}
+          >
             Open on X <ExternalLink className="h-3 w-3" />
           </a>
         </div>
@@ -221,7 +249,13 @@ export function CollectionViewPage() {
       <div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-2">
         <AnimatePresence>
           {collection.items.map((item, index) => (
-            <CollectionArticleCard key={item.tweetId} item={item} index={index} />
+            <CollectionArticleCard
+              key={item.tweetId}
+              item={item}
+              index={index}
+              collectionId={collection.id}
+              collectionName={collection.name}
+            />
           ))}
         </AnimatePresence>
       </div>
