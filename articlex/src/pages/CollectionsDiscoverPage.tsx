@@ -211,7 +211,7 @@ export function CollectionsDiscoverPage() {
                 <motion.button
                   type="button"
                   data-cursor="pointer"
-                  onClick={logout}
+                  onClick={() => void logout()}
                   className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted transition-colors hover:text-text-primary"
                   style={{ background: 'var(--source-btn-bg)', borderColor: 'var(--source-btn-border)' }}
                   whileHover={{ scale: 1.03 }}

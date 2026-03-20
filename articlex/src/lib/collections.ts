@@ -3,15 +3,20 @@
  *
  * Supabase SQL (run in Supabase SQL Editor):
  *
- *   CREATE TABLE collections (
- *     id          TEXT PRIMARY KEY,
- *     name        TEXT NOT NULL CHECK (char_length(name) BETWEEN 1 AND 60),
- *     description TEXT,
- *     created_at  TIMESTAMPTZ DEFAULT now(),
- *     view_count  INTEGER DEFAULT 0 NOT NULL
+ *   CREATE TABLE IF NOT EXISTS collections (
+ *     id             TEXT PRIMARY KEY,
+ *     name           TEXT NOT NULL CHECK (char_length(name) BETWEEN 1 AND 60),
+ *     description    TEXT,
+ *     tags           TEXT[] DEFAULT '{}',
+ *     contact_email  TEXT,
+ *     editable       BOOLEAN DEFAULT false,
+ *     is_public      BOOLEAN DEFAULT true,
+ *     user_id        TEXT,
+ *     created_at     TIMESTAMPTZ DEFAULT now(),
+ *     view_count     INTEGER DEFAULT 0 NOT NULL
  *   );
  *
- *   CREATE TABLE collection_items (
+ *   CREATE TABLE IF NOT EXISTS collection_items (
  *     id             BIGSERIAL PRIMARY KEY,
  *     collection_id  TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
  *     tweet_id       TEXT NOT NULL,
@@ -25,19 +30,37 @@
  *     added_at       TIMESTAMPTZ DEFAULT now()
  *   );
  *
- *   CREATE INDEX idx_collection_items_collection_id ON collection_items(collection_id);
- *   CREATE INDEX idx_collections_view_count ON collections(view_count DESC);
+ *   CREATE INDEX IF NOT EXISTS idx_collection_items_cid ON collection_items(collection_id);
+ *   CREATE INDEX IF NOT EXISTS idx_collections_views ON collections(view_count DESC);
+ *   CREATE INDEX IF NOT EXISTS idx_collections_user ON collections(user_id);
+ *   CREATE INDEX IF NOT EXISTS idx_collections_public ON collections(is_public);
  *
  *   ALTER TABLE collections ENABLE ROW LEVEL SECURITY;
  *   ALTER TABLE collection_items ENABLE ROW LEVEL SECURITY;
  *
- *   CREATE POLICY "public_read_collections" ON collections FOR SELECT USING (true);
- *   CREATE POLICY "public_read_items" ON collection_items FOR SELECT USING (true);
- *   CREATE POLICY "service_write_collections" ON collections FOR INSERT WITH CHECK (true);
- *   CREATE POLICY "service_write_items" ON collection_items FOR INSERT WITH CHECK (true);
+ *   -- Anyone can read public collections; owners can read their private ones
+ *   CREATE POLICY "read_collections" ON collections FOR SELECT
+ *     USING (is_public = true OR user_id = current_setting('request.jwt.claims', true)::json->>'sub');
  *
+ *   -- Anyone can read items of accessible collections
+ *   CREATE POLICY "read_items" ON collection_items FOR SELECT USING (true);
+ *
+ *   -- Anyone can insert (anon key used by the app)
+ *   CREATE POLICY "insert_collections" ON collections FOR INSERT WITH CHECK (true);
+ *   CREATE POLICY "insert_items" ON collection_items FOR INSERT WITH CHECK (true);
+ *
+ *   -- Only the owner can update/delete items on editable collections
+ *   CREATE POLICY "update_collections" ON collections FOR UPDATE
+ *     USING (user_id = current_setting('request.jwt.claims', true)::json->>'sub' AND editable = true);
+ *   CREATE POLICY "delete_items" ON collection_items FOR DELETE
+ *     USING (collection_id IN (
+ *       SELECT id FROM collections
+ *       WHERE user_id = current_setting('request.jwt.claims', true)::json->>'sub' AND editable = true
+ *     ));
+ *
+ *   -- View counter
  *   CREATE OR REPLACE FUNCTION increment_collection_views(collection_id TEXT)
- *   RETURNS void LANGUAGE sql AS $$
+ *   RETURNS void LANGUAGE sql SECURITY DEFINER AS $$
  *     UPDATE collections SET view_count = view_count + 1 WHERE id = collection_id;
  *   $$;
  */
