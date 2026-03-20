@@ -66,6 +66,8 @@
  */
 
 import { getSupabaseClient } from './supabase'
+import { queueCreateCollection, syncPendingOperations, getPendingCount } from './offline-queue'
+import { showToast } from './toast'
 import type { ArticleObject } from '../types/article'
 
 export interface CollectionItem {
@@ -128,49 +130,11 @@ export async function createCollection(params: {
   isPublic?: boolean
   userId?: string
   items: CollectionItem[]
-}): Promise<{ id: string } | { error: string }> {
+}): Promise<{ id: string; savedLocally?: boolean } | { error: string }> {
   const { nanoid } = await import('nanoid')
   const id = nanoid(6)
-  const supabase = getSupabaseClient()
 
-  if (supabase) {
-    const { error } = await supabase.from('collections').insert({
-      id,
-      name: params.name,
-      description: params.description ?? null,
-      tags: params.tags ?? [],
-      contact_email: params.contactEmail ?? null,
-      editable: params.editable ?? false,
-      is_public: params.isPublic ?? true,
-      user_id: params.userId ?? null,
-      created_at: new Date().toISOString(),
-      view_count: 0,
-    })
-    if (error) return { error: error.message }
-
-    if (params.items.length > 0) {
-      const { error: itemsError } = await supabase.from('collection_items').insert(
-        params.items.map((item) => ({
-          collection_id: id,
-          tweet_id: item.tweetId,
-          tweet_url: item.tweetUrl,
-          author_name: item.authorName,
-          author_handle: item.authorHandle,
-          author_avatar: item.authorAvatar,
-          title: item.title,
-          snippet: item.snippet,
-          cover_image: item.coverImage,
-          added_at: item.addedAt,
-        })),
-      )
-      if (itemsError) return { error: itemsError.message }
-    }
-
-    return { id }
-  }
-
-  const store = readLocalStore()
-  store[id] = {
+  const collection: Collection = {
     id,
     name: params.name,
     description: params.description ?? null,
@@ -184,8 +148,85 @@ export async function createCollection(params: {
     itemCount: params.items.length,
     items: params.items,
   }
+
+  const supabase = getSupabaseClient()
+
+  if (supabase) {
+    try {
+      const { error } = await supabase.from('collections').insert({
+        id,
+        name: collection.name,
+        description: collection.description,
+        tags: collection.tags,
+        contact_email: collection.contactEmail,
+        editable: collection.editable,
+        is_public: collection.isPublic,
+        user_id: collection.userId,
+        created_at: collection.createdAt,
+        view_count: 0,
+      })
+
+      if (error) {
+        return saveLocally(collection, true)
+      }
+
+      if (params.items.length > 0) {
+        const { error: itemsError } = await supabase.from('collection_items').insert(
+          params.items.map((item) => ({
+            collection_id: id,
+            tweet_id: item.tweetId,
+            tweet_url: item.tweetUrl,
+            author_name: item.authorName,
+            author_handle: item.authorHandle,
+            author_avatar: item.authorAvatar,
+            title: item.title,
+            snippet: item.snippet,
+            cover_image: item.coverImage,
+            added_at: item.addedAt,
+          })),
+        )
+        if (itemsError) {
+          showToast('warning', 'Collection created but some articles failed to save. They\'ll sync when connection is restored.')
+        }
+      }
+
+      return { id }
+    } catch {
+      return saveLocally(collection, true)
+    }
+  }
+
+  return saveLocally(collection, false)
+}
+
+function saveLocally(
+  collection: Collection,
+  queueForSync: boolean,
+): { id: string; savedLocally: boolean } {
+  const store = readLocalStore()
+  store[collection.id] = collection
   localStorage.setItem(LOCAL_KEY, JSON.stringify(store))
-  return { id }
+
+  if (queueForSync) {
+    queueCreateCollection(collection)
+    showToast('offline', 'Saved offline. Will sync when connection is restored.')
+  }
+
+  return { id: collection.id, savedLocally: true }
+}
+
+export async function trySyncPending(): Promise<void> {
+  const count = getPendingCount()
+  if (count === 0) return
+
+  showToast('syncing', `Syncing ${count} offline collection${count !== 1 ? 's' : ''}...`)
+  const { synced, failed } = await syncPendingOperations()
+
+  if (synced > 0 && failed === 0) {
+    showToast('success', `Synced ${synced} collection${synced !== 1 ? 's' : ''} successfully.`)
+  } else if (synced > 0 && failed > 0) {
+    showToast('warning', `Synced ${synced}, ${failed} still pending.`)
+  }
 }
 
 export async function getCollection(id: string): Promise<Collection | null> {

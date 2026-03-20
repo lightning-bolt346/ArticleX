@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AuroraBackground } from './components/ui/AuroraBackground'
+import { ConnectionBanner } from './components/ui/ConnectionBanner'
 import { CustomCursor } from './components/ui/CustomCursor'
+import { ToastContainer } from './components/ui/Toast'
+import { showToast } from './lib/toast'
 import { SiteFooter } from './components/SiteFooter'
 import { ThemeToggle } from './components/ui/ThemeToggle'
 import { AboutPage } from './pages/AboutPage'
@@ -12,6 +15,8 @@ import { ContactPage } from './pages/ContactPage'
 import { FaqPage } from './pages/FaqPage'
 import { FeaturesPage } from './pages/FeaturesPage'
 import { HomePage } from './pages/HomePage'
+import { startConnectionMonitor, onConnectionChange } from './lib/connection'
+import { trySyncPending } from './lib/collections'
 import { env } from './lib/env'
 
 type Theme = 'dark' | 'light'
@@ -82,6 +87,23 @@ function App() {
     }
   }, [])
 
+  useEffect(() => {
+    startConnectionMonitor()
+    let wasOffline = false
+    const unsub = onConnectionChange((status) => {
+      if (status === 'offline' && !wasOffline) {
+        wasOffline = true
+        showToast('offline', 'Connection lost. Your data will be saved locally.')
+      }
+      if (status === 'online' && wasOffline) {
+        wasOffline = false
+        showToast('online', 'Back online!')
+        void trySyncPending()
+      }
+    })
+    return unsub
+  }, [])
+
   const toggleTheme = useCallback(() => {
     setTheme((current) => (current === 'dark' ? 'light' : 'dark'))
   }, [])
@@ -95,6 +117,8 @@ function App() {
     <div className="relative min-h-screen overflow-x-clip bg-bg-base">
       <AuroraBackground />
       <CustomCursor />
+      <ConnectionBanner />
+      <ToastContainer />
       <HashRouter>
         <ThemeToggle theme={theme} onToggle={toggleTheme} />
         <RouteSideEffects />

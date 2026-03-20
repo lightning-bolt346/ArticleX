@@ -1,4 +1,5 @@
-import { getSupabaseClient } from './supabase'
+import { getSupabaseClient, isSupabaseConfigured } from './supabase'
+import { checkSupabaseHealth } from './connection'
 
 export interface AuthUser {
   id: string
@@ -35,17 +36,20 @@ function writeLocal(user: AuthUser | null) {
 export async function getStoredUser(): Promise<AuthUser | null> {
   const supabase = getSupabaseClient()
   if (supabase) {
-    const { data } = await supabase.auth.getUser()
-    if (data.user) {
-      return {
-        id: data.user.id,
-        email: data.user.email ?? '',
-        displayName:
-          (data.user.user_metadata?.display_name as string) ??
-          (data.user.email?.split('@')[0] ?? ''),
+    try {
+      const { data } = await supabase.auth.getUser()
+      if (data.user) {
+        const user: AuthUser = {
+          id: data.user.id,
+          email: data.user.email ?? '',
+          displayName:
+            (data.user.user_metadata?.display_name as string) ??
+            (data.user.email?.split('@')[0] ?? ''),
+        }
+        writeLocal(user)
+        return user
       }
-    }
-    return null
+    } catch { /* Supabase unreachable — fall back to local cache */ }
   }
   return readLocal()
 }
@@ -59,29 +63,28 @@ export async function signUp(
   password: string,
   displayName?: string,
 ): Promise<{ user: AuthUser } | { error: string }> {
-  const supabase = getSupabaseClient()
-  if (supabase) {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { display_name: displayName ?? email.split('@')[0] } },
-    })
-    if (error) return { error: error.message }
-    if (!data.user) return { error: 'Sign up failed. Please try again.' }
-    const user: AuthUser = {
-      id: data.user.id,
-      email: data.user.email ?? email,
-      displayName: displayName ?? email.split('@')[0],
-    }
-    writeLocal(user)
-    notifyChange()
-    return { user }
+  if (!isSupabaseConfigured()) {
+    return { error: 'Account creation requires an active connection. Please check your internet and try again.' }
   }
 
+  const healthy = await checkSupabaseHealth()
+  if (!healthy) {
+    return { error: 'Cannot reach the server right now. Please check your internet connection and try again.' }
+  }
+
+  const supabase = getSupabaseClient()!
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { display_name: displayName ?? email.split('@')[0] } },
+  })
+  if (error) return { error: error.message }
+  if (!data.user) return { error: 'Sign up failed. Please try again.' }
+
   const user: AuthUser = {
-    id: email.toLowerCase().replace(/[^a-z0-9]/g, '_'),
-    email: email.toLowerCase(),
-    displayName: displayName || email.split('@')[0],
+    id: data.user.id,
+    email: data.user.email ?? email,
+    displayName: displayName ?? email.split('@')[0],
   }
   writeLocal(user)
   notifyChange()
@@ -92,27 +95,26 @@ export async function signIn(
   email: string,
   password: string,
 ): Promise<{ user: AuthUser } | { error: string }> {
-  const supabase = getSupabaseClient()
-  if (supabase) {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) return { error: error.message }
-    if (!data.user) return { error: 'Sign in failed.' }
-    const user: AuthUser = {
-      id: data.user.id,
-      email: data.user.email ?? email,
-      displayName:
-        (data.user.user_metadata?.display_name as string) ??
-        email.split('@')[0],
-    }
-    writeLocal(user)
-    notifyChange()
-    return { user }
+  if (!isSupabaseConfigured()) {
+    return { error: 'Sign in requires an active connection. Please check your internet and try again.' }
   }
 
+  const healthy = await checkSupabaseHealth()
+  if (!healthy) {
+    return { error: 'Cannot reach the server right now. Please check your internet connection and try again.' }
+  }
+
+  const supabase = getSupabaseClient()!
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  if (error) return { error: error.message }
+  if (!data.user) return { error: 'Sign in failed.' }
+
   const user: AuthUser = {
-    id: email.toLowerCase().replace(/[^a-z0-9]/g, '_'),
-    email: email.toLowerCase(),
-    displayName: email.split('@')[0],
+    id: data.user.id,
+    email: data.user.email ?? email,
+    displayName:
+      (data.user.user_metadata?.display_name as string) ??
+      email.split('@')[0],
   }
   writeLocal(user)
   notifyChange()
