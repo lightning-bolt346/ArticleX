@@ -143,7 +143,7 @@ export function HomePage({ razorpayStatus }: HomePageProps) {
         </section>
 
         <section>
-          <UrlInput onSuccess={handleSuccess} isLoading={isLoading} prefillUrl={prefillUrl} />
+          <UrlInput key={prefillUrl || 'url-input'} onSuccess={handleSuccess} isLoading={isLoading} prefillUrl={prefillUrl} />
           {error ? (
             <motion.div
               initial={{ opacity: 0, y: -8 }}
