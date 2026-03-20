@@ -1,6 +1,7 @@
 import { getSupabaseClient, isSupabaseConfigured } from './supabase'
+import { env } from './env'
 
-export type ConnectionStatus = 'online' | 'offline' | 'syncing' | 'checking'
+export type ConnectionStatus = 'online' | 'offline' | 'backend-issue' | 'syncing' | 'checking'
 
 const STATUS_EVENT = 'articlex-connection-changed'
 let _status: ConnectionStatus = 'checking'
@@ -17,6 +18,23 @@ function setStatus(next: ConnectionStatus) {
 
 export async function checkSupabaseHealth(): Promise<boolean> {
   if (!isSupabaseConfigured()) return false
+
+  try {
+    const res = await fetch(`${env.supabaseUrl}/rest/v1/`, {
+      method: 'HEAD',
+      headers: {
+        'apikey': env.supabaseAnonKey!,
+        'Authorization': `Bearer ${env.supabaseAnonKey!}`,
+      },
+      signal: AbortSignal.timeout(5000),
+    })
+    return res.ok || res.status === 200 || res.status === 404
+  } catch {
+    return false
+  }
+}
+
+export async function checkSupabaseTableAccess(): Promise<boolean> {
   const supabase = getSupabaseClient()
   if (!supabase) return false
   try {
@@ -35,12 +53,25 @@ export function startConnectionMonitor() {
       setStatus('offline')
       return
     }
+
     if (!isSupabaseConfigured()) {
-      setStatus('offline')
+      setStatus('online')
       return
     }
-    const healthy = await checkSupabaseHealth()
-    setStatus(healthy ? 'online' : 'offline')
+
+    const serverUp = await checkSupabaseHealth()
+    if (!serverUp) {
+      setStatus(navigator.onLine ? 'backend-issue' : 'offline')
+      return
+    }
+
+    const tablesOk = await checkSupabaseTableAccess()
+    if (!tablesOk) {
+      setStatus('backend-issue')
+      return
+    }
+
+    setStatus('online')
   }
 
   void poll()
