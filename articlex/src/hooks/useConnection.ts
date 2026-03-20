@@ -16,6 +16,9 @@ export function useConnection() {
     status,
     isOnline: status === 'online',
     isOffline: status === 'offline',
+    isBackendIssue: status === 'backend-issue',
     isSyncing: status === 'syncing',
+    isHealthy: status === 'online',
+    hasIssue: status === 'offline' || status === 'backend-issue',
   }
 }

@@ -1,5 +1,5 @@
 import { getSupabaseClient, isSupabaseConfigured } from './supabase'
-import { checkSupabaseHealth } from './connection'
+import { env } from './env'
 
 export interface AuthUser {
   id: string
@@ -58,18 +58,35 @@ export function getStoredUserSync(): AuthUser | null {
   return readLocal()
 }
 
+async function canReachAuth(): Promise<boolean> {
+  if (!env.supabaseUrl) return false
+  try {
+    const res = await fetch(`${env.supabaseUrl}/auth/v1/settings`, {
+      headers: { 'apikey': env.supabaseAnonKey! },
+      signal: AbortSignal.timeout(5000),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
 export async function signUp(
   email: string,
   password: string,
   displayName?: string,
 ): Promise<{ user: AuthUser } | { error: string }> {
   if (!isSupabaseConfigured()) {
-    return { error: 'Account creation requires an active connection. Please check your internet and try again.' }
+    return { error: 'Sign up requires a server connection. Please try again in a moment.' }
   }
 
-  const healthy = await checkSupabaseHealth()
-  if (!healthy) {
-    return { error: 'Cannot reach the server right now. Please check your internet connection and try again.' }
+  if (!navigator.onLine) {
+    return { error: 'You appear to be offline. Please check your internet connection.' }
+  }
+
+  const reachable = await canReachAuth()
+  if (!reachable) {
+    return { error: 'Our authentication service is temporarily unavailable. We\'re working on it — please try again shortly.' }
   }
 
   const supabase = getSupabaseClient()!
@@ -96,12 +113,16 @@ export async function signIn(
   password: string,
 ): Promise<{ user: AuthUser } | { error: string }> {
   if (!isSupabaseConfigured()) {
-    return { error: 'Sign in requires an active connection. Please check your internet and try again.' }
+    return { error: 'Sign in requires a server connection. Please try again in a moment.' }
   }
 
-  const healthy = await checkSupabaseHealth()
-  if (!healthy) {
-    return { error: 'Cannot reach the server right now. Please check your internet connection and try again.' }
+  if (!navigator.onLine) {
+    return { error: 'You appear to be offline. Please check your internet connection.' }
+  }
+
+  const reachable = await canReachAuth()
+  if (!reachable) {
+    return { error: 'Our authentication service is temporarily unavailable. We\'re working on it — please try again shortly.' }
   }
 
   const supabase = getSupabaseClient()!

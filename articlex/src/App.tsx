@@ -89,15 +89,19 @@ function App() {
 
   useEffect(() => {
     startConnectionMonitor()
-    let wasOffline = false
+    let hadIssue = false
     const unsub = onConnectionChange((status) => {
-      if (status === 'offline' && !wasOffline) {
-        wasOffline = true
-        showToast('offline', 'Connection lost. Your data will be saved locally.')
+      if ((status === 'offline' || status === 'backend-issue') && !hadIssue) {
+        hadIssue = true
+        if (status === 'offline') {
+          showToast('offline', 'No internet — your work is saved locally.')
+        } else {
+          showToast('warning', 'Service temporarily unavailable. Your data is safe locally.')
+        }
       }
-      if (status === 'online' && wasOffline) {
-        wasOffline = false
-        showToast('online', 'Back online!')
+      if (status === 'online' && hadIssue) {
+        hadIssue = false
+        showToast('success', 'Connection restored — welcome back!')
         void trySyncPending()
       }
     })
