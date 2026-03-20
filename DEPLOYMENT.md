@@ -249,7 +249,23 @@ Supabase provides authentication, a PostgreSQL database, and edge functions.
 | `VITE_SUPABASE_ANON_KEY` | `eyJ...` | All |
 | `SUPABASE_SERVICE_ROLE_KEY` | `eyJ...` | Production only |
 
-**4. Redeploy.** The app detects Supabase availability via `integrationAvailability.supabase` in `src/lib/env.ts`.
+**4. Run the SQL bootstrap file.**
+
+Open Supabase SQL Editor and run:
+
+```sql
+-- paste the contents of articlex/supabase-setup.sql
+```
+
+That file creates:
+- `collections`
+- `collection_items`
+- `tweet_cache`
+- `articles`
+- RLS policies
+- `increment_collection_views(...)`
+
+**5. Redeploy.** The app detects Supabase availability via `integrationAvailability.supabase` in `src/lib/env.ts`.
 
 ### Firebase (Auth + Database)
 
@@ -418,3 +434,20 @@ Fix any type errors shown. The build command runs `tsc -b` before `vite build`.
 - Backend vars (without `VITE_`) are only available in Vercel API routes
 - After adding env vars in Vercel, you must **redeploy** for them to take effect
 - For local dev, vars go in `articlex/.env` (never commit this file)
+
+### Supabase returns 401 on `/rest/v1/`
+
+This usually means one of these is true:
+
+1. `VITE_SUPABASE_ANON_KEY` is wrong or was pasted incompletely
+2. You added env vars in Vercel but did **not** redeploy afterwards
+3. You only added frontend env vars and skipped `SUPABASE_SERVICE_ROLE_KEY`, so server-side cache/API routes are still under-configured
+4. You created the Supabase project but did **not** run `articlex/supabase-setup.sql`, so the expected tables/policies are missing
+
+Quick checks:
+
+1. Verify `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in Vercel
+2. Verify `SUPABASE_SERVICE_ROLE_KEY` is present for server routes
+3. Run the SQL from `articlex/supabase-setup.sql`
+4. Redeploy
+5. Open `https://your-project.vercel.app/api/health`

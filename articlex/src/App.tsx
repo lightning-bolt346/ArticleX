@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { type ReactElement, useCallback, useEffect, useMemo, useState } from 'react'
 import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AuroraBackground } from './components/ui/AuroraBackground'
 import { ConnectionBanner } from './components/ui/ConnectionBanner'
@@ -15,6 +15,7 @@ import { ContactPage } from './pages/ContactPage'
 import { FaqPage } from './pages/FaqPage'
 import { FeaturesPage } from './pages/FeaturesPage'
 import { HomePage } from './pages/HomePage'
+import { PostPreviewPage } from './pages/PostPreviewPage'
 import { startConnectionMonitor, onConnectionChange } from './lib/connection'
 import { trySyncPending } from './lib/collections'
 import { env } from './lib/env'
@@ -53,12 +54,49 @@ function RouteSideEffects() {
   const location = useLocation()
 
   useEffect(() => {
-    const title = PAGE_TITLES[location.pathname] ?? 'ArticleX'
+    const title = location.pathname.startsWith('/collections/')
+      ? 'Collection · ArticleX'
+      : location.pathname.startsWith('/posts/')
+        ? 'Preview · ArticleX'
+        : PAGE_TITLES[location.pathname] ?? 'ArticleX'
     document.title = title
     window.scrollTo({ top: 0, behavior: 'auto' })
   }, [location.pathname])
 
   return null
+}
+
+function AppRoutes({
+  theme,
+  toggleTheme,
+  homePage,
+}: {
+  theme: Theme
+  toggleTheme: () => void
+  homePage: ReactElement
+}) {
+  const location = useLocation()
+  const isImmersivePreview = location.pathname.startsWith('/posts/')
+
+  return (
+    <>
+      {!isImmersivePreview ? <ThemeToggle theme={theme} onToggle={toggleTheme} /> : null}
+      <RouteSideEffects />
+      <Routes>
+        <Route path="/" element={homePage} />
+        <Route path="/features" element={<FeaturesPage />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/contact" element={<ContactPage />} />
+        <Route path="/faq" element={<FaqPage />} />
+        <Route path="/collections" element={<CollectionsDiscoverPage />} />
+        <Route path="/collections/new" element={<CollectionCreatePage />} />
+        <Route path="/collections/:id" element={<CollectionViewPage />} />
+        <Route path="/posts/:tweetId" element={<PostPreviewPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      {!isImmersivePreview ? <SiteFooter /> : null}
+    </>
+  )
 }
 
 function App() {
@@ -124,20 +162,7 @@ function App() {
       <ConnectionBanner />
       <ToastContainer />
       <HashRouter>
-        <ThemeToggle theme={theme} onToggle={toggleTheme} />
-        <RouteSideEffects />
-        <Routes>
-          <Route path="/" element={homePage} />
-          <Route path="/features" element={<FeaturesPage />} />
-          <Route path="/about" element={<AboutPage />} />
-          <Route path="/contact" element={<ContactPage />} />
-          <Route path="/faq" element={<FaqPage />} />
-          <Route path="/collections" element={<CollectionsDiscoverPage />} />
-          <Route path="/collections/new" element={<CollectionCreatePage />} />
-          <Route path="/collections/:id" element={<CollectionViewPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-        <SiteFooter />
+        <AppRoutes theme={theme} toggleTheme={toggleTheme} homePage={homePage} />
       </HashRouter>
     </div>
   )

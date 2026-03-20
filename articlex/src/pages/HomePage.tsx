@@ -6,14 +6,8 @@ import { ArticlePreview } from '../components/ArticlePreview'
 import { LocalHistory } from '../components/LocalHistory'
 import { TipButton } from '../components/TipButton'
 import { UrlInput } from '../components/UrlInput'
-import { getCachedArticle, setCachedArticle } from '../lib/article-cache'
-import {
-  FxTwitterErrorCode,
-  type FxTwitterError,
-  fetchTweet,
-} from '../lib/fxtwitter'
-import { addToHistory, updateFormats } from '../lib/history'
-import { normalizeTweet } from '../lib/normalizer'
+import { updateFormats } from '../lib/history'
+import { loadArticleFromUrl, resolveArticleErrorMessage } from '../lib/article-service'
 import type { ArticleObject } from '../types/article'
 import brandMark from '../assets/articlex-mark.svg'
 
@@ -40,32 +34,6 @@ interface HomePageProps {
   razorpayStatus: 'checking' | 'working' | 'unavailable'
 }
 
-const TWEET_ID_REGEX = /(?:x\.com|twitter\.com)\/[^/]+\/status\/(\d+)/
-
-function extractTweetId(url: string): string | null {
-  const match = url
-    .trim()
-    .replace('mobile.x.com', 'x.com')
-    .replace('/article/', '/status/')
-    .match(TWEET_ID_REGEX)
-  return match?.[1] ?? null
-}
-
-async function fetchViaProxy(url: string): Promise<Record<string, unknown>> {
-  const res = await fetch('/api/fetch-tweet', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url }),
-  })
-
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({})) as { error?: string }
-    throw new Error(body.error ?? `Proxy error ${res.status}`)
-  }
-
-  return res.json() as Promise<Record<string, unknown>>
-}
-
 export function HomePage({ razorpayStatus }: HomePageProps) {
   const [article, setArticle] = useState<ArticleObject | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -74,53 +42,21 @@ export function HomePage({ razorpayStatus }: HomePageProps) {
   const [fromCache, setFromCache] = useState(false)
   const previewRef = useRef<HTMLElement | null>(null)
 
-  const resolveErrorMessage = useCallback((err: unknown): string => {
-    const typedError = err as FxTwitterError
-    switch (typedError?.code) {
-      case FxTwitterErrorCode.INVALID_URL: return 'Please paste a valid X/Twitter URL.'
-      case FxTwitterErrorCode.NOT_FOUND: return 'Tweet not found. It may have been deleted.'
-      case FxTwitterErrorCode.PRIVATE_TWEET: return 'This tweet is private and cannot be accessed.'
-      case FxTwitterErrorCode.API_ERROR: return `FixTweet API error${typedError.status ? ` (${typedError.status})` : ''}. Try again in a moment.`
-      case FxTwitterErrorCode.TWEET_ERROR: return 'The API returned an invalid tweet payload.'
-      default: return 'Something went wrong while converting this URL.'
-    }
-  }, [])
-
   const handleSuccess = useCallback(async (url: string) => {
     setError(null)
     setFromCache(false)
     setIsLoading(true)
     setPrefillUrl(url)
     try {
-      const tweetId = extractTweetId(url)
-      if (tweetId) {
-        const cached = getCachedArticle(tweetId)
-        if (cached) {
-          setArticle(cached)
-          setFromCache(true)
-          addToHistory(cached, [])
-          setIsLoading(false)
-          return
-        }
-      }
-
-      let payload: Record<string, unknown>
-      try {
-        payload = await fetchViaProxy(url)
-      } catch {
-        payload = await fetchTweet(url)
-      }
-
-      const normalized = normalizeTweet(payload)
-      setArticle(normalized)
-      addToHistory(normalized, [])
-      setCachedArticle(normalized.tweetId, normalized)
+      const result = await loadArticleFromUrl(url)
+      setArticle(result.article)
+      setFromCache(result.fromCache)
     } catch (err) {
-      setError(resolveErrorMessage(err))
+      setError(resolveArticleErrorMessage(err))
     } finally {
       setIsLoading(false)
     }
-  }, [resolveErrorMessage])
+  }, [])
 
   const handleHistorySelect = useCallback((url: string) => { void handleSuccess(url) }, [handleSuccess])
   const handleExport = useCallback((format: string) => {
