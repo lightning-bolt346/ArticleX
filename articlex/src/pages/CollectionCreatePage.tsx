@@ -7,6 +7,7 @@ import {
   ChevronDown,
   ChevronUp,
   Copy,
+  FileText,
   Link as LinkIcon,
   Loader2,
   Lock,
@@ -48,6 +49,12 @@ export function CollectionCreatePage() {
   const [articleUrl, setArticleUrl] = useState('')
   const [addLoading, setAddLoading] = useState(false)
   const [addError, setAddError] = useState<string | null>(null)
+
+  const [bulkOpen, setBulkOpen] = useState(false)
+  const [bulkText, setBulkText] = useState('')
+  const [bulkLoading, setBulkLoading] = useState(false)
+  const [bulkProgress, setBulkProgress] = useState<string | null>(null)
+  const [bulkMsg, setBulkMsg] = useState<string | null>(null)
 
   const [importOpen, setImportOpen] = useState(false)
   const [importUrl, setImportUrl] = useState('')
@@ -128,6 +135,91 @@ export function CollectionCreatePage() {
       return next
     })
   }, [])
+
+  const handleBulkAdd = useCallback(async () => {
+    const text = bulkText.trim()
+    if (!text) return
+
+    const allMatches = text.match(/https?:\/\/(?:www\.)?(?:x\.com|twitter\.com|mobile\.x\.com)\/[^\s/]+\/(?:status|article)\/\d+/g)
+    if (!allMatches || allMatches.length === 0) {
+      setBulkMsg('No X/Twitter URLs found in the text.')
+      return
+    }
+
+    const seen = new Set<string>()
+    const uniqueUrls: string[] = []
+    for (const url of allMatches) {
+      const id = extractTweetId(url)
+      if (id && !seen.has(id)) {
+        seen.add(id)
+        uniqueUrls.push(url)
+      }
+    }
+
+    const existingIds = new Set(items.map((i) => i.tweetId))
+    const toFetch = uniqueUrls.filter((url) => {
+      const id = extractTweetId(url)
+      return id && !existingIds.has(id)
+    })
+
+    if (toFetch.length === 0) {
+      setBulkMsg(`Found ${uniqueUrls.length} URL${uniqueUrls.length !== 1 ? 's' : ''}, but all are already added.`)
+      return
+    }
+
+    const slotsLeft = 50 - items.length
+    const batch = toFetch.slice(0, slotsLeft)
+
+    setBulkLoading(true)
+    setBulkMsg(null)
+    let added = 0
+    let failed = 0
+
+    for (let i = 0; i < batch.length; i++) {
+      setBulkProgress(`Processing ${i + 1}/${batch.length}...`)
+      const url = batch[i]
+      try {
+        const tweetId = extractTweetId(url)!
+        let article = getCachedArticle(tweetId)
+        if (!article) {
+          let payload: Record<string, unknown>
+          try {
+            const res = await fetch('/api/fetch-tweet', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url }),
+            })
+            if (!res.ok) throw new Error()
+            payload = (await res.json()) as Record<string, unknown>
+          } catch {
+            payload = await fetchTweet(url)
+          }
+          article = normalizeTweet(payload)
+          setCachedArticle(article.tweetId, article)
+        }
+        const item = articleToCollectionItem(article)
+        setItems((prev) => {
+          if (prev.some((p) => p.tweetId === item.tweetId)) return prev
+          return [...prev, item]
+        })
+        added++
+      } catch {
+        failed++
+      }
+    }
+
+    const skipped = uniqueUrls.length - batch.length - (uniqueUrls.length - toFetch.length)
+    const dupes = uniqueUrls.length - toFetch.length
+    const parts: string[] = []
+    if (added > 0) parts.push(`${added} added`)
+    if (dupes > 0) parts.push(`${dupes} already existed`)
+    if (failed > 0) parts.push(`${failed} failed`)
+    if (skipped > 0) parts.push(`${skipped} skipped (limit 50)`)
+    setBulkMsg(`Found ${uniqueUrls.length} URL${uniqueUrls.length !== 1 ? 's' : ''}: ${parts.join(', ')}.`)
+    setBulkProgress(null)
+    setBulkLoading(false)
+    if (added > 0) setBulkText('')
+  }, [bulkText, items])
 
   const handleImport = useCallback(async () => {
     const raw = importUrl.trim()
@@ -464,6 +556,85 @@ export function CollectionCreatePage() {
                 No articles added yet. Paste a URL above to get started.
               </p>
             )}
+          </motion.div>
+
+          {/* ── Bulk Add from Text ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...cardSpring, delay: 0.12 }}
+            className="mt-5 rounded-[28px] border p-6 backdrop-blur-xl"
+            style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
+          >
+            <motion.button
+              type="button"
+              data-cursor="pointer"
+              onClick={() => setBulkOpen((prev) => !prev)}
+              className="flex w-full items-center justify-between font-jakarta text-[15px] font-bold text-text-primary"
+            >
+              <span className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-accent-violet" />
+                Bulk add from text
+              </span>
+              {bulkOpen ? <ChevronUp className="h-4 w-4 text-text-dim" /> : <ChevronDown className="h-4 w-4 text-text-dim" />}
+            </motion.button>
+
+            <AnimatePresence>
+              {bulkOpen && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden"
+                >
+                  <p className="mt-3 font-inter text-[12px] text-text-dim">
+                    Paste any text containing X/Twitter links. All post URLs will be extracted and added automatically.
+                  </p>
+                  <textarea
+                    value={bulkText}
+                    onChange={(e) => { setBulkText(e.target.value); setBulkMsg(null) }}
+                    placeholder={"Check out these threads:\nhttps://x.com/naval/status/1002103360646823936\nhttps://x.com/elonmusk/status/1234567890\n\nOr paste an article, notes, anything with X links in it..."}
+                    rows={5}
+                    disabled={bulkLoading}
+                    className="mt-3 w-full resize-none rounded-xl border bg-bg-elevated px-4 py-3 font-mono text-[13px] text-text-primary outline-none transition-colors placeholder:font-inter placeholder:text-[13px] placeholder:text-text-dim focus:border-accent-violet/60 disabled:opacity-60"
+                    style={{ borderColor: 'var(--border-subtle)' }}
+                  />
+
+                  <div className="mt-3 flex items-center gap-3">
+                    <motion.button
+                      type="button"
+                      data-cursor="pointer"
+                      onClick={() => void handleBulkAdd()}
+                      disabled={bulkLoading || !bulkText.trim()}
+                      className="inline-flex items-center gap-1.5 rounded-xl px-5 py-2.5 font-inter text-[14px] font-semibold text-white disabled:opacity-50"
+                      style={{ background: 'linear-gradient(135deg, #7c3aed, #06b6d4)' }}
+                      whileHover={bulkLoading ? undefined : { scale: 1.03 }}
+                      whileTap={bulkLoading ? undefined : { scale: 0.97 }}
+                    >
+                      {bulkLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                      Extract & Add All
+                    </motion.button>
+
+                    {bulkProgress && (
+                      <span className="font-mono text-[11px] text-accent-cyan">{bulkProgress}</span>
+                    )}
+                  </div>
+
+                  <AnimatePresence>
+                    {bulkMsg && (
+                      <motion.p
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className={`mt-2 font-inter text-[12px] ${bulkMsg.includes('added') ? 'text-emerald-400' : 'text-text-dim'}`}
+                      >
+                        {bulkMsg}
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
 
           {/* ── Step 3: Import ── */}
