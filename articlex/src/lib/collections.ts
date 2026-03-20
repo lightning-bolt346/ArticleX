@@ -3,15 +3,20 @@
  *
  * Supabase SQL (run in Supabase SQL Editor):
  *
- *   CREATE TABLE collections (
- *     id          TEXT PRIMARY KEY,
- *     name        TEXT NOT NULL CHECK (char_length(name) BETWEEN 1 AND 60),
- *     description TEXT,
- *     created_at  TIMESTAMPTZ DEFAULT now(),
- *     view_count  INTEGER DEFAULT 0 NOT NULL
+ *   CREATE TABLE IF NOT EXISTS collections (
+ *     id             TEXT PRIMARY KEY,
+ *     name           TEXT NOT NULL CHECK (char_length(name) BETWEEN 1 AND 60),
+ *     description    TEXT,
+ *     tags           TEXT[] DEFAULT '{}',
+ *     contact_email  TEXT,
+ *     editable       BOOLEAN DEFAULT false,
+ *     is_public      BOOLEAN DEFAULT true,
+ *     user_id        TEXT,
+ *     created_at     TIMESTAMPTZ DEFAULT now(),
+ *     view_count     INTEGER DEFAULT 0 NOT NULL
  *   );
  *
- *   CREATE TABLE collection_items (
+ *   CREATE TABLE IF NOT EXISTS collection_items (
  *     id             BIGSERIAL PRIMARY KEY,
  *     collection_id  TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
  *     tweet_id       TEXT NOT NULL,
@@ -25,24 +30,44 @@
  *     added_at       TIMESTAMPTZ DEFAULT now()
  *   );
  *
- *   CREATE INDEX idx_collection_items_collection_id ON collection_items(collection_id);
- *   CREATE INDEX idx_collections_view_count ON collections(view_count DESC);
+ *   CREATE INDEX IF NOT EXISTS idx_collection_items_cid ON collection_items(collection_id);
+ *   CREATE INDEX IF NOT EXISTS idx_collections_views ON collections(view_count DESC);
+ *   CREATE INDEX IF NOT EXISTS idx_collections_user ON collections(user_id);
+ *   CREATE INDEX IF NOT EXISTS idx_collections_public ON collections(is_public);
  *
  *   ALTER TABLE collections ENABLE ROW LEVEL SECURITY;
  *   ALTER TABLE collection_items ENABLE ROW LEVEL SECURITY;
  *
- *   CREATE POLICY "public_read_collections" ON collections FOR SELECT USING (true);
- *   CREATE POLICY "public_read_items" ON collection_items FOR SELECT USING (true);
- *   CREATE POLICY "service_write_collections" ON collections FOR INSERT WITH CHECK (true);
- *   CREATE POLICY "service_write_items" ON collection_items FOR INSERT WITH CHECK (true);
+ *   -- Anyone can read public collections; owners can read their private ones
+ *   CREATE POLICY "read_collections" ON collections FOR SELECT
+ *     USING (is_public = true OR user_id = current_setting('request.jwt.claims', true)::json->>'sub');
  *
+ *   -- Anyone can read items of accessible collections
+ *   CREATE POLICY "read_items" ON collection_items FOR SELECT USING (true);
+ *
+ *   -- Anyone can insert (anon key used by the app)
+ *   CREATE POLICY "insert_collections" ON collections FOR INSERT WITH CHECK (true);
+ *   CREATE POLICY "insert_items" ON collection_items FOR INSERT WITH CHECK (true);
+ *
+ *   -- Only the owner can update/delete items on editable collections
+ *   CREATE POLICY "update_collections" ON collections FOR UPDATE
+ *     USING (user_id = current_setting('request.jwt.claims', true)::json->>'sub' AND editable = true);
+ *   CREATE POLICY "delete_items" ON collection_items FOR DELETE
+ *     USING (collection_id IN (
+ *       SELECT id FROM collections
+ *       WHERE user_id = current_setting('request.jwt.claims', true)::json->>'sub' AND editable = true
+ *     ));
+ *
+ *   -- View counter
  *   CREATE OR REPLACE FUNCTION increment_collection_views(collection_id TEXT)
- *   RETURNS void LANGUAGE sql AS $$
+ *   RETURNS void LANGUAGE sql SECURITY DEFINER AS $$
  *     UPDATE collections SET view_count = view_count + 1 WHERE id = collection_id;
  *   $$;
  */
 
 import { getSupabaseClient } from './supabase'
+import { queueCreateCollection, syncPendingOperations, getPendingCount } from './offline-queue'
+import { showToast } from './toast'
 import type { ArticleObject } from '../types/article'
 
 export interface CollectionItem {
@@ -61,6 +86,11 @@ export interface Collection {
   id: string
   name: string
   description: string | null
+  tags: string[]
+  contactEmail: string | null
+  editable: boolean
+  isPublic: boolean
+  userId: string | null
   createdAt: string
   viewCount: number
   itemCount: number
@@ -94,55 +124,109 @@ function readLocalStore(): Record<string, Collection> {
 export async function createCollection(params: {
   name: string
   description?: string
+  tags?: string[]
+  contactEmail?: string
+  editable?: boolean
+  isPublic?: boolean
+  userId?: string
   items: CollectionItem[]
-}): Promise<{ id: string } | { error: string }> {
+}): Promise<{ id: string; savedLocally?: boolean } | { error: string }> {
   const { nanoid } = await import('nanoid')
   const id = nanoid(6)
-  const supabase = getSupabaseClient()
 
-  if (supabase) {
-    const { error } = await supabase.from('collections').insert({
-      id,
-      name: params.name,
-      description: params.description ?? null,
-      created_at: new Date().toISOString(),
-      view_count: 0,
-    })
-    if (error) return { error: error.message }
-
-    if (params.items.length > 0) {
-      const { error: itemsError } = await supabase.from('collection_items').insert(
-        params.items.map((item) => ({
-          collection_id: id,
-          tweet_id: item.tweetId,
-          tweet_url: item.tweetUrl,
-          author_name: item.authorName,
-          author_handle: item.authorHandle,
-          author_avatar: item.authorAvatar,
-          title: item.title,
-          snippet: item.snippet,
-          cover_image: item.coverImage,
-          added_at: item.addedAt,
-        })),
-      )
-      if (itemsError) return { error: itemsError.message }
-    }
-
-    return { id }
-  }
-
-  const store = readLocalStore()
-  store[id] = {
+  const collection: Collection = {
     id,
     name: params.name,
     description: params.description ?? null,
+    tags: params.tags ?? [],
+    contactEmail: params.contactEmail ?? null,
+    editable: params.editable ?? false,
+    isPublic: params.isPublic ?? true,
+    userId: params.userId ?? null,
     createdAt: new Date().toISOString(),
     viewCount: 0,
     itemCount: params.items.length,
     items: params.items,
   }
+
+  const supabase = getSupabaseClient()
+
+  if (supabase) {
+    try {
+      const { error } = await supabase.from('collections').insert({
+        id,
+        name: collection.name,
+        description: collection.description,
+        tags: collection.tags,
+        contact_email: collection.contactEmail,
+        editable: collection.editable,
+        is_public: collection.isPublic,
+        user_id: collection.userId,
+        created_at: collection.createdAt,
+        view_count: 0,
+      })
+
+      if (error) {
+        return saveLocally(collection, true)
+      }
+
+      if (params.items.length > 0) {
+        const { error: itemsError } = await supabase.from('collection_items').insert(
+          params.items.map((item) => ({
+            collection_id: id,
+            tweet_id: item.tweetId,
+            tweet_url: item.tweetUrl,
+            author_name: item.authorName,
+            author_handle: item.authorHandle,
+            author_avatar: item.authorAvatar,
+            title: item.title,
+            snippet: item.snippet,
+            cover_image: item.coverImage,
+            added_at: item.addedAt,
+          })),
+        )
+        if (itemsError) {
+          showToast('warning', 'Collection created but some articles failed to save. They\'ll sync when connection is restored.')
+        }
+      }
+
+      return { id }
+    } catch {
+      return saveLocally(collection, true)
+    }
+  }
+
+  return saveLocally(collection, false)
+}
+
+function saveLocally(
+  collection: Collection,
+  queueForSync: boolean,
+): { id: string; savedLocally: boolean } {
+  const store = readLocalStore()
+  store[collection.id] = collection
   localStorage.setItem(LOCAL_KEY, JSON.stringify(store))
-  return { id }
+
+  if (queueForSync) {
+    queueCreateCollection(collection)
+    showToast('offline', 'Saved offline. Will sync when connection is restored.')
+  }
+
+  return { id: collection.id, savedLocally: true }
+}
+
+export async function trySyncPending(): Promise<void> {
+  const count = getPendingCount()
+  if (count === 0) return
+
+  showToast('syncing', `Syncing ${count} offline collection${count !== 1 ? 's' : ''}...`)
+  const { synced, failed } = await syncPendingOperations()
+
+  if (synced > 0 && failed === 0) {
+    showToast('success', `Synced ${synced} collection${synced !== 1 ? 's' : ''} successfully.`)
+  } else if (synced > 0 && failed > 0) {
+    showToast('warning', `Synced ${synced}, ${failed} still pending.`)
+  }
 }
 
 export async function getCollection(id: string): Promise<Collection | null> {
@@ -176,6 +260,11 @@ export async function getCollection(id: string): Promise<Collection | null> {
       id: c.id as string,
       name: c.name as string,
       description: c.description as string | null,
+      tags: (c.tags as string[]) ?? [],
+      contactEmail: (c.contact_email as string) ?? null,
+      editable: (c.editable as boolean) ?? false,
+      isPublic: (c.is_public as boolean) ?? true,
+      userId: (c.user_id as string) ?? null,
       createdAt: c.created_at as string,
       viewCount: c.view_count as number,
       itemCount: items.length,
@@ -212,7 +301,8 @@ export async function getTopCollections(limit = 20): Promise<Collection[]> {
   if (supabase) {
     const { data, error } = await supabase
       .from('collections')
-      .select('id, name, description, created_at, view_count')
+      .select('id, name, description, tags, contact_email, editable, is_public, user_id, created_at, view_count')
+      .eq('is_public', true)
       .order('view_count', { ascending: false })
       .limit(limit)
 
@@ -222,6 +312,11 @@ export async function getTopCollections(limit = 20): Promise<Collection[]> {
       id: c.id as string,
       name: c.name as string,
       description: c.description as string | null,
+      tags: (c.tags as string[]) ?? [],
+      contactEmail: (c.contact_email as string) ?? null,
+      editable: (c.editable as boolean) ?? false,
+      isPublic: (c.is_public as boolean) ?? true,
+      userId: (c.user_id as string) ?? null,
       createdAt: c.created_at as string,
       viewCount: c.view_count as number,
       itemCount: 0,
@@ -231,6 +326,87 @@ export async function getTopCollections(limit = 20): Promise<Collection[]> {
 
   const store = readLocalStore()
   return Object.values(store)
+    .filter((c) => c.isPublic)
     .sort((a, b) => b.viewCount - a.viewCount)
     .slice(0, limit)
+}
+
+export async function updateCollectionItems(
+  collectionId: string,
+  items: CollectionItem[],
+): Promise<{ ok: boolean } | { error: string }> {
+  const supabase = getSupabaseClient()
+
+  if (supabase) {
+    const { error: delErr } = await supabase
+      .from('collection_items')
+      .delete()
+      .eq('collection_id', collectionId)
+    if (delErr) return { error: delErr.message }
+
+    if (items.length > 0) {
+      const { error } = await supabase.from('collection_items').insert(
+        items.map((item) => ({
+          collection_id: collectionId,
+          tweet_id: item.tweetId,
+          tweet_url: item.tweetUrl,
+          author_name: item.authorName,
+          author_handle: item.authorHandle,
+          author_avatar: item.authorAvatar,
+          title: item.title,
+          snippet: item.snippet,
+          cover_image: item.coverImage,
+          added_at: item.addedAt,
+        })),
+      )
+      if (error) return { error: error.message }
+    }
+
+    return { ok: true }
+  }
+
+  try {
+    const store = readLocalStore()
+    if (!store[collectionId]) return { error: 'Not found' }
+    store[collectionId].items = items
+    store[collectionId].itemCount = items.length
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(store))
+    return { ok: true }
+  } catch {
+    return { error: 'Failed to update' }
+  }
+}
+
+export async function getUserCollections(userId: string): Promise<Collection[]> {
+  const supabase = getSupabaseClient()
+
+  if (supabase) {
+    const { data, error } = await supabase
+      .from('collections')
+      .select('id, name, description, tags, contact_email, editable, is_public, user_id, created_at, view_count')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+
+    if (error || !data) return []
+
+    return (data as Record<string, unknown>[]).map((c) => ({
+      id: c.id as string,
+      name: c.name as string,
+      description: c.description as string | null,
+      tags: (c.tags as string[]) ?? [],
+      contactEmail: (c.contact_email as string) ?? null,
+      editable: (c.editable as boolean) ?? false,
+      isPublic: (c.is_public as boolean) ?? true,
+      userId: (c.user_id as string) ?? null,
+      createdAt: c.created_at as string,
+      viewCount: c.view_count as number,
+      itemCount: 0,
+      items: [],
+    }))
+  }
+
+  const store = readLocalStore()
+  return Object.values(store)
+    .filter((c) => c.userId === userId)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 }

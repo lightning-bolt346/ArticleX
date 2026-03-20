@@ -36,9 +36,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured' })
 
   try {
-    const { name, description, items } = req.body as {
+    const { name, description, tags, contactEmail, editable, isPublic, userId, items } = req.body as {
       name?: string
       description?: string
+      tags?: string[]
+      contactEmail?: string
+      editable?: boolean
+      isPublic?: boolean
+      userId?: string
       items?: ItemPayload[]
     }
 
@@ -53,6 +58,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       id,
       name: name.trim(),
       description: description?.trim() || null,
+      tags: Array.isArray(tags) ? tags.slice(0, 10) : [],
+      contact_email: contactEmail?.trim() || null,
+      editable: editable ?? false,
+      is_public: isPublic ?? true,
+      user_id: userId ?? null,
       created_at: new Date().toISOString(),
       view_count: 0,
     })
