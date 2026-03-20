@@ -1,4 +1,4 @@
-const AUTH_KEY = 'articlex-auth-v1'
+import { getSupabaseClient } from './supabase'
 
 export interface AuthUser {
   id: string
@@ -6,41 +6,124 @@ export interface AuthUser {
   displayName: string
 }
 
-interface StoredAuth {
-  user: AuthUser
-  loggedInAt: string
+const AUTH_EVENT = 'articlex-auth-changed'
+const LOCAL_KEY = 'articlex-auth-v1'
+
+function notifyChange() {
+  window.dispatchEvent(new Event(AUTH_EVENT))
 }
 
-function readAuth(): StoredAuth | null {
+function readLocal(): AuthUser | null {
   try {
-    const raw = localStorage.getItem(AUTH_KEY)
+    const raw = localStorage.getItem(LOCAL_KEY)
     if (!raw) return null
-    const parsed = JSON.parse(raw) as StoredAuth
-    if (!parsed?.user?.id || !parsed?.user?.email) return null
-    return parsed
+    const parsed = JSON.parse(raw) as { user?: AuthUser }
+    return parsed?.user?.id ? parsed.user : null
   } catch {
     return null
   }
 }
 
-export function getStoredUser(): AuthUser | null {
-  return readAuth()?.user ?? null
+function writeLocal(user: AuthUser | null) {
+  if (user) {
+    localStorage.setItem(LOCAL_KEY, JSON.stringify({ user, loggedInAt: new Date().toISOString() }))
+  } else {
+    localStorage.removeItem(LOCAL_KEY)
+  }
 }
 
-export function loginUser(email: string, displayName?: string): AuthUser {
-  const id = email.toLowerCase().replace(/[^a-z0-9]/g, '_')
+export async function getStoredUser(): Promise<AuthUser | null> {
+  const supabase = getSupabaseClient()
+  if (supabase) {
+    const { data } = await supabase.auth.getUser()
+    if (data.user) {
+      return {
+        id: data.user.id,
+        email: data.user.email ?? '',
+        displayName:
+          (data.user.user_metadata?.display_name as string) ??
+          (data.user.email?.split('@')[0] ?? ''),
+      }
+    }
+    return null
+  }
+  return readLocal()
+}
+
+export function getStoredUserSync(): AuthUser | null {
+  return readLocal()
+}
+
+export async function signUp(
+  email: string,
+  password: string,
+  displayName?: string,
+): Promise<{ user: AuthUser } | { error: string }> {
+  const supabase = getSupabaseClient()
+  if (supabase) {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { display_name: displayName ?? email.split('@')[0] } },
+    })
+    if (error) return { error: error.message }
+    if (!data.user) return { error: 'Sign up failed. Please try again.' }
+    const user: AuthUser = {
+      id: data.user.id,
+      email: data.user.email ?? email,
+      displayName: displayName ?? email.split('@')[0],
+    }
+    writeLocal(user)
+    notifyChange()
+    return { user }
+  }
+
   const user: AuthUser = {
-    id,
+    id: email.toLowerCase().replace(/[^a-z0-9]/g, '_'),
     email: email.toLowerCase(),
     displayName: displayName || email.split('@')[0],
   }
-  const stored: StoredAuth = { user, loggedInAt: new Date().toISOString() }
-  localStorage.setItem(AUTH_KEY, JSON.stringify(stored))
-  window.dispatchEvent(new Event('articlex-auth-changed'))
-  return user
+  writeLocal(user)
+  notifyChange()
+  return { user }
 }
 
-export function logoutUser(): void {
-  localStorage.removeItem(AUTH_KEY)
-  window.dispatchEvent(new Event('articlex-auth-changed'))
+export async function signIn(
+  email: string,
+  password: string,
+): Promise<{ user: AuthUser } | { error: string }> {
+  const supabase = getSupabaseClient()
+  if (supabase) {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) return { error: error.message }
+    if (!data.user) return { error: 'Sign in failed.' }
+    const user: AuthUser = {
+      id: data.user.id,
+      email: data.user.email ?? email,
+      displayName:
+        (data.user.user_metadata?.display_name as string) ??
+        email.split('@')[0],
+    }
+    writeLocal(user)
+    notifyChange()
+    return { user }
+  }
+
+  const user: AuthUser = {
+    id: email.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+    email: email.toLowerCase(),
+    displayName: email.split('@')[0],
+  }
+  writeLocal(user)
+  notifyChange()
+  return { user }
+}
+
+export async function logoutUser(): Promise<void> {
+  const supabase = getSupabaseClient()
+  if (supabase) {
+    await supabase.auth.signOut().catch(() => {})
+  }
+  writeLocal(null)
+  notifyChange()
 }
