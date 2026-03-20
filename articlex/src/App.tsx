@@ -5,6 +5,9 @@ import { CustomCursor } from './components/ui/CustomCursor'
 import { SiteFooter } from './components/SiteFooter'
 import { ThemeToggle } from './components/ui/ThemeToggle'
 import { AboutPage } from './pages/AboutPage'
+import { CollectionCreatePage } from './pages/CollectionCreatePage'
+import { CollectionViewPage } from './pages/CollectionViewPage'
+import { CollectionsDiscoverPage } from './pages/CollectionsDiscoverPage'
 import { ContactPage } from './pages/ContactPage'
 import { FaqPage } from './pages/FaqPage'
 import { FeaturesPage } from './pages/FeaturesPage'
@@ -37,6 +40,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/about': 'About · ArticleX',
   '/contact': 'Contact · ArticleX',
   '/faq': 'FAQ · ArticleX',
+  '/collections': 'Collections · ArticleX',
+  '/collections/new': 'Create Collection · ArticleX',
 }
 
 function RouteSideEffects() {
@@ -99,6 +104,9 @@ function App() {
           <Route path="/about" element={<AboutPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/faq" element={<FaqPage />} />
+          <Route path="/collections" element={<CollectionsDiscoverPage />} />
+          <Route path="/collections/new" element={<CollectionCreatePage />} />
+          <Route path="/collections/:id" element={<CollectionViewPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <SiteFooter />

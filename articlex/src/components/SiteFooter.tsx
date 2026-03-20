@@ -5,6 +5,7 @@ import brandMark from '../assets/articlex-mark.svg'
 const NAV_ITEMS = [
   { to: '/', label: 'Home' },
   { to: '/features', label: 'Features' },
+  { to: '/collections', label: 'Collections' },
   { to: '/about', label: 'About' },
   { to: '/contact', label: 'Contact' },
   { to: '/faq', label: 'FAQ' },

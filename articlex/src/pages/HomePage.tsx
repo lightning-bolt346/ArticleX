@@ -1,11 +1,12 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { AlertCircle, ArrowRight, Sparkles } from 'lucide-react'
+import { AlertCircle, ArrowRight, Sparkles, Zap } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArticlePreview } from '../components/ArticlePreview'
 import { LocalHistory } from '../components/LocalHistory'
 import { TipButton } from '../components/TipButton'
 import { UrlInput } from '../components/UrlInput'
+import { getCachedArticle, setCachedArticle } from '../lib/article-cache'
 import {
   FxTwitterErrorCode,
   type FxTwitterError,
@@ -39,11 +40,38 @@ interface HomePageProps {
   razorpayStatus: 'checking' | 'working' | 'unavailable'
 }
 
+const TWEET_ID_REGEX = /(?:x\.com|twitter\.com)\/[^/]+\/status\/(\d+)/
+
+function extractTweetId(url: string): string | null {
+  const match = url
+    .trim()
+    .replace('mobile.x.com', 'x.com')
+    .replace('/article/', '/status/')
+    .match(TWEET_ID_REGEX)
+  return match?.[1] ?? null
+}
+
+async function fetchViaProxy(url: string): Promise<Record<string, unknown>> {
+  const res = await fetch('/api/fetch-tweet', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url }),
+  })
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({})) as { error?: string }
+    throw new Error(body.error ?? `Proxy error ${res.status}`)
+  }
+
+  return res.json() as Promise<Record<string, unknown>>
+}
+
 export function HomePage({ razorpayStatus }: HomePageProps) {
   const [article, setArticle] = useState<ArticleObject | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [prefillUrl, setPrefillUrl] = useState('')
+  const [fromCache, setFromCache] = useState(false)
   const previewRef = useRef<HTMLElement | null>(null)
 
   const resolveErrorMessage = useCallback((err: unknown): string => {
@@ -60,13 +88,33 @@ export function HomePage({ razorpayStatus }: HomePageProps) {
 
   const handleSuccess = useCallback(async (url: string) => {
     setError(null)
+    setFromCache(false)
     setIsLoading(true)
     setPrefillUrl(url)
     try {
-      const payload = await fetchTweet(url)
+      const tweetId = extractTweetId(url)
+      if (tweetId) {
+        const cached = getCachedArticle(tweetId)
+        if (cached) {
+          setArticle(cached)
+          setFromCache(true)
+          addToHistory(cached, [])
+          setIsLoading(false)
+          return
+        }
+      }
+
+      let payload: Record<string, unknown>
+      try {
+        payload = await fetchViaProxy(url)
+      } catch {
+        payload = await fetchTweet(url)
+      }
+
       const normalized = normalizeTweet(payload)
       setArticle(normalized)
       addToHistory(normalized, [])
+      setCachedArticle(normalized.tweetId, normalized)
     } catch (err) {
       setError(resolveErrorMessage(err))
     } finally {
@@ -85,6 +133,7 @@ export function HomePage({ razorpayStatus }: HomePageProps) {
 
   const quickLinks = useMemo(() => ([
     { to: '/features', label: 'Features' },
+    { to: '/collections', label: 'Collections' },
     { to: '/about', label: 'About' },
     { to: '/contact', label: 'Contact' },
   ]), [])
@@ -170,6 +219,22 @@ export function HomePage({ razorpayStatus }: HomePageProps) {
             </motion.div>
           ) : null}
         </section>
+
+        <AnimatePresence>
+          {fromCache && article && (
+            <motion.div
+              key="cache-badge"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              className="mt-4 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[10px] text-text-muted"
+              style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-elevated)' }}
+            >
+              <Zap className="h-3 w-3 text-accent-cyan" />
+              Loaded from cache
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <section ref={previewRef} className="mt-8">
           <AnimatePresence mode="wait">
