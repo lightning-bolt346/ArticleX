@@ -156,7 +156,67 @@ CREATE POLICY "anyone_write_articles" ON articles FOR INSERT WITH CHECK (true);
 CREATE POLICY "anyone_update_articles" ON articles FOR UPDATE USING (true);
 
 
--- ─── STEP 5: VIEW COUNTER FUNCTION ─────────────────────────
+-- ─── STEP 5: SUBSTACK FEED TABLES ──────────────────────────
+
+CREATE TABLE IF NOT EXISTS substack_subscriptions (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id         UUID REFERENCES auth.users NOT NULL,
+  publication_url TEXT NOT NULL,
+  title           TEXT,
+  description     TEXT,
+  favicon_url     TEXT,
+  created_at      TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(user_id, publication_url)
+);
+
+CREATE TABLE IF NOT EXISTS substack_read_status (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id        UUID REFERENCES auth.users NOT NULL,
+  article_url    TEXT NOT NULL,
+  is_read        BOOLEAN DEFAULT false,
+  is_bookmarked  BOOLEAN DEFAULT false,
+  read_at        TIMESTAMPTZ,
+  UNIQUE(user_id, article_url)
+);
+
+CREATE INDEX IF NOT EXISTS idx_substack_subs_user  ON substack_subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_substack_status_user ON substack_read_status(user_id);
+
+ALTER TABLE substack_subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE substack_read_status   ENABLE ROW LEVEL SECURITY;
+
+-- Subscriptions: users can only read/write their own rows
+CREATE POLICY "subs_select_own"
+  ON substack_subscriptions FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "subs_insert_own"
+  ON substack_subscriptions FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "subs_delete_own"
+  ON substack_subscriptions FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- Read status: users can only read/write their own rows
+CREATE POLICY "read_status_select_own"
+  ON substack_read_status FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "read_status_insert_own"
+  ON substack_read_status FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "read_status_update_own"
+  ON substack_read_status FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "read_status_upsert_own"
+  ON substack_read_status FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+
+-- ─── STEP 6: VIEW COUNTER FUNCTION ─────────────────────────
 -- SECURITY DEFINER lets this bypass RLS (needed for anonymous view counting)
 
 CREATE OR REPLACE FUNCTION increment_collection_views(collection_id TEXT)
@@ -169,6 +229,8 @@ $$;
 
 
 -- ─── DONE! ──────────────────────────────────────────────────
+-- Substack feed tables added in Step 5.
+-- Users must be authenticated (Supabase Auth) to use the Feeds feature.
 -- Your tables are ready. The app will connect automatically.
 -- For production on Vercel, also add:
 --   VITE_SUPABASE_URL
