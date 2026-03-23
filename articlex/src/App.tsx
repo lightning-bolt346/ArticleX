@@ -15,6 +15,7 @@ import { ContactPage } from './pages/ContactPage'
 import { FaqPage } from './pages/FaqPage'
 import { FeaturesPage } from './pages/FeaturesPage'
 import { HomePage } from './pages/HomePage'
+import { FeedsPage } from './pages/FeedsPage'
 import { PostPreviewPage } from './pages/PostPreviewPage'
 import { startConnectionMonitor, onConnectionChange } from './lib/connection'
 import { trySyncPending } from './lib/collections'
@@ -48,6 +49,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/faq': 'FAQ · ArticleX',
   '/collections': 'Collections · ArticleX',
   '/collections/new': 'Create Collection · ArticleX',
+  '/feeds': 'Feeds · ArticleX',
 }
 
 function RouteSideEffects() {
@@ -92,6 +94,7 @@ function AppRoutes({
         <Route path="/collections/new" element={<CollectionCreatePage />} />
         <Route path="/collections/:id" element={<CollectionViewPage />} />
         <Route path="/posts/:tweetId" element={<PostPreviewPage />} />
+        <Route path="/feeds" element={<FeedsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       {!isImmersivePreview ? <SiteFooter /> : null}

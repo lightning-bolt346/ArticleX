@@ -70,6 +70,7 @@ export function HomePage({ razorpayStatus }: HomePageProps) {
   const quickLinks = useMemo(() => ([
     { to: '/features', label: 'Features' },
     { to: '/collections', label: 'Collections' },
+    { to: '/feeds', label: 'Feeds' },
     { to: '/about', label: 'About' },
     { to: '/contact', label: 'Contact' },
   ]), [])
